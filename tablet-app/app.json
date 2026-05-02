@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Bar Manager",
+    "slug": "bar-manager-tablet",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "android": {
+      "package": "com.barmanager.tablet",
+      "intentFilters": [
+        {
+          "action": "android.intent.action.VIEW",
+          "data": [{ "scheme": "barmanager" }],
+          "category": [
+            "android.intent.category.DEFAULT",
+            "android.intent.category.BROWSABLE"
+          ]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-intent-launcher"
+    ]
+  }
+}
