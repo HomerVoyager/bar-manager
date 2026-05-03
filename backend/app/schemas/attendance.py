@@ -3,7 +3,7 @@
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date as Date
 
 from app.schemas.staff import StaffBrief
 
@@ -11,7 +11,7 @@ from app.schemas.staff import StaffBrief
 class AttendanceBase(BaseModel):
     """勤怠基底スキーマ（共通フィールド）"""
     staff_id: int = Field(..., description="スタッフID")
-    date: date = Field(..., description="勤務日")
+    date: Date = Field(..., description="勤務日")
 
 
 class ClockInRequest(BaseModel):
