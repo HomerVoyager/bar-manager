@@ -14,8 +14,11 @@ import {
   ShoppingCart,
   X,
   Receipt,
+  Pencil,
+  Trash2,
+  Settings,
 } from 'lucide-react';
-import { fetchTables } from '../api/tables';
+import { fetchTables, createTable, updateTable, deleteTable } from '../api/tables';
 import { fetchProducts } from '../api/products';
 import { fetchStaff } from '../api/staff';
 import {
@@ -57,11 +60,15 @@ const tableCardStyles = {
   reserved: 'bg-yellow-900/20 border-yellow-700 hover:bg-yellow-900/30',
 };
 
+type TableForm = { name: string; capacity: number };
+
 const Tables: React.FC = () => {
   const [tables, setTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [isOpenSessionModal, setIsOpenSessionModal] = useState(false);
   const [isSessionDetailModal, setIsSessionDetailModal] = useState(false);
+  const [isTableMasterModal, setIsTableMasterModal] = useState(false);
+  const [editingTable, setEditingTable] = useState<Table | null>(null);
   const [splitCount, setSplitCount] = useState<number>(2);
   const queryClient = useQueryClient();
 
@@ -111,6 +118,73 @@ const Tables: React.FC = () => {
     reset: resetOpen,
     formState: { errors: openErrors },
   } = useForm<Omit<OpenSessionForm, 'table_id'>>();
+
+  // テーブルマスタフォーム
+  const {
+    register: registerTable,
+    handleSubmit: handleSubmitTable,
+    reset: resetTable,
+    setValue: setValueTable,
+    formState: { errors: tableErrors },
+  } = useForm<TableForm>();
+
+  // テーブル作成ミューテーション
+  const createTableMutation = useMutation({
+    mutationFn: (data: TableForm) => createTable({ name: data.name, capacity: Number(data.capacity) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      setIsTableMasterModal(false);
+      resetTable();
+      refetch();
+    },
+    onError: () => alert('テーブルの登録に失敗しました。'),
+  });
+
+  // テーブル更新ミューテーション
+  const updateTableMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: TableForm }) =>
+      updateTable(id, { name: data.name, capacity: Number(data.capacity) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      setIsTableMasterModal(false);
+      setEditingTable(null);
+      resetTable();
+      refetch();
+    },
+    onError: () => alert('テーブルの更新に失敗しました。'),
+  });
+
+  // テーブル削除ミューテーション
+  const deleteTableMutation = useMutation({
+    mutationFn: deleteTable,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      refetch();
+    },
+    onError: () => alert('テーブルの削除に失敗しました。'),
+  });
+
+  const onTableSubmit = (data: TableForm) => {
+    if (editingTable) {
+      updateTableMutation.mutate({ id: editingTable.id, data });
+    } else {
+      createTableMutation.mutate(data);
+    }
+  };
+
+  const openEditTable = (table: Table, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTable(table);
+    setValueTable('name', table.name);
+    setValueTable('capacity', table.capacity);
+    setIsTableMasterModal(true);
+  };
+
+  const openAddTable = () => {
+    setEditingTable(null);
+    resetTable();
+    setIsTableMasterModal(true);
+  };
 
   // 注文追加フォーム
   const {
@@ -245,6 +319,13 @@ const Tables: React.FC = () => {
             {isConnected ? 'リアルタイム' : '切断中'}
           </div>
           <button
+            onClick={openAddTable}
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            テーブル追加
+          </button>
+          <button
             onClick={() => refetch()}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm transition-colors"
           >
@@ -286,9 +367,34 @@ const Tables: React.FC = () => {
               {/* テーブル名 */}
               <div className="flex items-center justify-between mb-2">
                 <span className="text-white font-semibold text-sm">{table.name}</span>
-                {table.status === 'occupied' && (
-                  <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                )}
+                <div className="flex items-center gap-1">
+                  {table.status === 'occupied' && (
+                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                  )}
+                  {table.status === 'empty' && (
+                    <>
+                      <button
+                        onClick={(e) => openEditTable(table, e)}
+                        className="p-1 text-gray-500 hover:text-indigo-400 rounded transition-colors"
+                        title="編集"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`「${table.name}」を削除しますか？`)) {
+                            deleteTableMutation.mutate(table.id);
+                          }
+                        }}
+                        className="p-1 text-gray-500 hover:text-red-400 rounded transition-colors"
+                        title="削除"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* ステータスバッジ */}
@@ -326,6 +432,59 @@ const Tables: React.FC = () => {
           <Grid className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>テーブルデータがありません</p>
         </div>
+      )}
+
+      {/* テーブル追加・編集モーダル */}
+      {isTableMasterModal && (
+        <Modal
+          title={editingTable ? `${editingTable.name} を編集` : 'テーブル追加'}
+          onClose={() => { setIsTableMasterModal(false); setEditingTable(null); resetTable(); }}
+          size="small"
+          footer={
+            <>
+              <button
+                onClick={() => { setIsTableMasterModal(false); setEditingTable(null); resetTable(); }}
+                className="px-4 py-2 text-gray-400 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSubmitTable(onTableSubmit)}
+                disabled={createTableMutation.isPending || updateTableMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-lg text-sm"
+              >
+                {(createTableMutation.isPending || updateTableMutation.isPending) && (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                )}
+                {editingTable ? '更新する' : '追加する'}
+              </button>
+            </>
+          }
+        >
+          <form className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">テーブル名</label>
+              <input
+                type="text"
+                placeholder="例: C1"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                {...registerTable('name', { required: 'テーブル名を入力してください' })}
+              />
+              {tableErrors.name && <p className="mt-1 text-xs text-red-400">{tableErrors.name.message}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">定員（名）</label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                {...registerTable('capacity', { required: '定員を入力してください', min: 1 })}
+              />
+              {tableErrors.capacity && <p className="mt-1 text-xs text-red-400">{tableErrors.capacity.message}</p>}
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* 開卓モーダル */}

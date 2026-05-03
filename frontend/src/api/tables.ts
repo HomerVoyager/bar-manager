@@ -27,3 +27,8 @@ export const updateTable = async (id: number, data: Partial<Table>): Promise<Tab
   const response = await apiClient.put<Table>(`/tables/${id}`, data);
   return response.data;
 };
+
+// テーブルを削除
+export const deleteTable = async (id: number): Promise<void> => {
+  await apiClient.delete(`/tables/${id}`);
+};

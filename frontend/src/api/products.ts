@@ -45,3 +45,8 @@ export const fetchCategories = async (): Promise<string[]> => {
   const response = await apiClient.get<string[]>('/products/categories');
   return response.data;
 };
+
+// 商品を削除（論理削除）
+export const deleteProduct = async (id: number): Promise<void> => {
+  await apiClient.delete(`/products/${id}`);
+};

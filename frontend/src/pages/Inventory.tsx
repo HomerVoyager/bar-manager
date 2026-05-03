@@ -4,14 +4,24 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Package, AlertTriangle, History, Plus, RefreshCw } from 'lucide-react';
+import { Package, AlertTriangle, History, Plus, RefreshCw, Pencil, Trash2, Settings } from 'lucide-react';
 import { format } from 'date-fns';
-import { fetchProducts } from '../api/products';
+import { fetchProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 import { fetchStockLogs, adjustStock } from '../api/stock';
 import AlertBadge from '../components/AlertBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
 import type { Product, StockLog, StockAdjustForm } from '../types';
+
+type ProductForm = {
+  name: string;
+  category: string;
+  price: number;
+  cost: number;
+  unit: string;
+  alert_qty: number;
+  stock_qty: number;
+};
 
 // 在庫状態を判定する関数
 const getStockStatus = (product: Product): { label: string; variant: 'success' | 'warning' | 'danger' } => {
@@ -21,11 +31,13 @@ const getStockStatus = (product: Product): { label: string; variant: 'success' |
 };
 
 // タブの型定義
-type TabType = 'list' | 'history' | 'alert';
+type TabType = 'list' | 'history' | 'alert' | 'master';
 
 const Inventory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const queryClient = useQueryClient();
 
   // 商品一覧の取得
@@ -43,6 +55,85 @@ const Inventory: React.FC = () => {
 
   // 在庫調整フォーム
   const { register, handleSubmit, reset, formState: { errors } } = useForm<StockAdjustForm>();
+
+  // 商品マスタフォーム
+  const {
+    register: registerMaster,
+    handleSubmit: handleSubmitMaster,
+    reset: resetMaster,
+    setValue: setValueMaster,
+    formState: { errors: masterErrors },
+  } = useForm<ProductForm>();
+
+  // 商品作成ミューテーション
+  const createProductMutation = useMutation({
+    mutationFn: (data: ProductForm) => createProduct({
+      ...data,
+      price: Number(data.price),
+      cost: Number(data.cost),
+      alert_qty: Number(data.alert_qty),
+      stock_qty: Number(data.stock_qty),
+      is_active: true,
+    } as Omit<Product, 'id' | 'is_low_stock'>),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setIsMasterModalOpen(false);
+      resetMaster();
+    },
+    onError: () => alert('商品の登録に失敗しました。'),
+  });
+
+  // 商品更新ミューテーション
+  const updateProductMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: ProductForm }) =>
+      updateProduct(id, {
+        ...data,
+        price: Number(data.price),
+        cost: Number(data.cost),
+        alert_qty: Number(data.alert_qty),
+        stock_qty: Number(data.stock_qty),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setIsMasterModalOpen(false);
+      setEditingProduct(null);
+      resetMaster();
+    },
+    onError: () => alert('商品の更新に失敗しました。'),
+  });
+
+  // 商品削除ミューテーション
+  const deleteProductMutation = useMutation({
+    mutationFn: deleteProduct,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onError: () => alert('商品の削除に失敗しました。'),
+  });
+
+  const onMasterSubmit = (data: ProductForm) => {
+    if (editingProduct) {
+      updateProductMutation.mutate({ id: editingProduct.id, data });
+    } else {
+      createProductMutation.mutate(data);
+    }
+  };
+
+  const openEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setValueMaster('name', product.name);
+    setValueMaster('category', product.category ?? '');
+    setValueMaster('price', product.price);
+    setValueMaster('cost', product.cost);
+    setValueMaster('unit', product.unit ?? '');
+    setValueMaster('alert_qty', product.alert_qty);
+    setValueMaster('stock_qty', product.stock_qty);
+    setIsMasterModalOpen(true);
+  };
+
+  const openAddProduct = () => {
+    setEditingProduct(null);
+    resetMaster();
+    setIsMasterModalOpen(true);
+  };
 
   // 在庫調整ミューテーション
   const adjustMutation = useMutation({
@@ -100,13 +191,24 @@ const Inventory: React.FC = () => {
           <h2 className="text-2xl font-bold text-white">在庫管理</h2>
           <p className="text-gray-400 text-sm mt-1">商品の在庫状況と入出庫管理</p>
         </div>
-        <button
-          onClick={() => setIsAdjustModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          在庫調整
-        </button>
+        <div className="flex gap-2">
+          {activeTab === 'master' && (
+            <button
+              onClick={openAddProduct}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              商品追加
+            </button>
+          )}
+          <button
+            onClick={() => setIsAdjustModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            在庫調整
+          </button>
+        </div>
       </div>
 
       {/* タブ切り替え */}
@@ -115,6 +217,7 @@ const Inventory: React.FC = () => {
           { key: 'list', icon: Package, label: '在庫一覧' },
           { key: 'history', icon: History, label: '入出庫履歴' },
           { key: 'alert', icon: AlertTriangle, label: `発注アラート (${lowStockProducts.length})` },
+          { key: 'master', icon: Settings, label: '商品マスタ' },
         ] as { key: TabType; icon: React.ComponentType<{ className?: string }>; label: string }[]).map(({ key, icon: Icon, label }) => (
           <button
             key={key}
@@ -302,6 +405,169 @@ const Inventory: React.FC = () => {
             </>
           )}
         </div>
+      )}
+
+      {/* 商品マスタタブ */}
+      {activeTab === 'master' && (
+        <div className="bg-gray-800 rounded-xl border border-gray-700">
+          {productsLoading ? (
+            <LoadingSpinner message="商品データを読み込み中..." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left text-gray-400 px-4 py-3 font-medium">商品名</th>
+                    <th className="text-left text-gray-400 px-4 py-3 font-medium">カテゴリ</th>
+                    <th className="text-right text-gray-400 px-4 py-3 font-medium">販売価格</th>
+                    <th className="text-right text-gray-400 px-4 py-3 font-medium">原価</th>
+                    <th className="text-right text-gray-400 px-4 py-3 font-medium">単位</th>
+                    <th className="text-right text-gray-400 px-4 py-3 font-medium">アラート数</th>
+                    <th className="text-center text-gray-400 px-4 py-3 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {products?.map((product) => (
+                    <tr key={product.id} className={`hover:bg-gray-700/30 transition-colors ${!product.is_active ? 'opacity-40' : ''}`}>
+                      <td className="px-4 py-3 text-white font-medium">{product.name}</td>
+                      <td className="px-4 py-3 text-gray-400">{product.category ?? '-'}</td>
+                      <td className="px-4 py-3 text-right text-amber-400">¥{product.price.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-gray-400">¥{product.cost.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-gray-400">{product.unit ?? '個'}</td>
+                      <td className="px-4 py-3 text-right text-gray-400">{product.alert_qty}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openEditProduct(product)}
+                            className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-900/30 rounded transition-colors"
+                            title="編集"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`「${product.name}」を削除しますか？`)) {
+                                deleteProductMutation.mutate(product.id);
+                              }
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/30 rounded transition-colors"
+                            title="削除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {(!products || products.length === 0) && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-gray-500">商品データがありません</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 商品マスタ編集モーダル */}
+      {isMasterModalOpen && (
+        <Modal
+          title={editingProduct ? '商品編集' : '商品追加'}
+          onClose={() => { setIsMasterModalOpen(false); setEditingProduct(null); resetMaster(); }}
+          size="medium"
+          footer={
+            <>
+              <button
+                onClick={() => { setIsMasterModalOpen(false); setEditingProduct(null); resetMaster(); }}
+                className="px-4 py-2 text-gray-400 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSubmitMaster(onMasterSubmit)}
+                disabled={createProductMutation.isPending || updateProductMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-lg text-sm"
+              >
+                {(createProductMutation.isPending || updateProductMutation.isPending) && (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                )}
+                {editingProduct ? '更新する' : '登録する'}
+              </button>
+            </>
+          }
+        >
+          <form className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-300 mb-1">商品名</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('name', { required: '商品名を入力してください' })}
+                />
+                {masterErrors.name && <p className="mt-1 text-xs text-red-400">{masterErrors.name.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">カテゴリ</label>
+                <input
+                  type="text"
+                  placeholder="例: アルコール"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('category')}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">単位</label>
+                <input
+                  type="text"
+                  placeholder="例: 杯"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('unit')}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">販売価格（円）</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('price', { required: '販売価格を入力してください', min: 0 })}
+                />
+                {masterErrors.price && <p className="mt-1 text-xs text-red-400">{masterErrors.price.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">原価（円）</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('cost', { required: '原価を入力してください', min: 0 })}
+                />
+                {masterErrors.cost && <p className="mt-1 text-xs text-red-400">{masterErrors.cost.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">アラート在庫数</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('alert_qty', { required: true, min: 0 })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">初期在庫数</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  {...registerMaster('stock_qty', { required: true, min: 0 })}
+                />
+              </div>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* 在庫調整モーダル */}
