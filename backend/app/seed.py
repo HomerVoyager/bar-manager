@@ -27,10 +27,10 @@ def seed_staff(db):
 
     staff_data = [
         {
-            "name": "マネージャー田中",
+            "name": "admin",
             "role": "manager",
             "hourly_wage": 1500,
-            "password": "admin123",
+            "password": "admin",
         },
         {
             "name": "バーテンダー鈴木",
