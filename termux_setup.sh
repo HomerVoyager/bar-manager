@@ -75,7 +75,6 @@ success "PostgreSQL セットアップ完了"
 # ===== STEP 4: Python 依存関係インストール =====
 step "STEP 4: Python パッケージのインストール"
 info "FastAPI と関連パッケージをインストールします..."
-pip install --upgrade pip
 pip install \
     fastapi==0.111.0 \
     "uvicorn[standard]==0.29.0" \
