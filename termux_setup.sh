@@ -78,7 +78,7 @@ info "FastAPI と関連パッケージをインストールします..."
 LDFLAGS="-L${PREFIX}/lib" CFLAGS="-I${PREFIX}/include" pip install \
     "fastapi==0.104.1" \
     "uvicorn==0.24.0" \
-    sqlalchemy==2.0.30 \
+    sqlalchemy==2.0.36 \
     pg8000==1.31.2 \
     "python-jose==3.3.0" \
     "passlib==1.7.4" \
