@@ -76,8 +76,8 @@ success "PostgreSQL セットアップ完了"
 step "STEP 4: Python パッケージのインストール"
 info "FastAPI と関連パッケージをインストールします..."
 pip install \
-    fastapi==0.111.0 \
-    "uvicorn==0.29.0" \
+    "fastapi==0.104.1" \
+    "uvicorn==0.24.0" \
     sqlalchemy==2.0.30 \
     psycopg2-binary==2.9.9 \
     "python-jose[cryptography]==3.3.0" \
