@@ -3,8 +3,8 @@
 
 import axios from 'axios';
 
-// バックエンドAPIのベースURL
-const BASE_URL = 'http://localhost:8000/api/v1';
+// バックエンドAPIのベースURL（Viteプロキシ経由）
+const BASE_URL = '/api/v1';
 
 // axiosインスタンスの作成
 export const apiClient = axios.create({
