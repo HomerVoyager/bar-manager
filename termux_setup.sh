@@ -77,7 +77,7 @@ step "STEP 4: Python パッケージのインストール"
 info "FastAPI と関連パッケージをインストールします..."
 pip install \
     fastapi==0.111.0 \
-    "uvicorn[standard]==0.29.0" \
+    "uvicorn==0.29.0" \
     sqlalchemy==2.0.30 \
     psycopg2-binary==2.9.9 \
     "python-jose[cryptography]==3.3.0" \
