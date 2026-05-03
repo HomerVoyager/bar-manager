@@ -54,7 +54,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         }
     )
 
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer", user=staff)
 
 
 @router.get("/me", response_model=StaffResponse, summary="現在のユーザー情報取得")

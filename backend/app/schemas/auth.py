@@ -4,6 +4,8 @@
 from pydantic import BaseModel
 from typing import Optional
 
+from app.schemas.staff import StaffResponse
+
 
 class LoginRequest(BaseModel):
     """ログインリクエストスキーマ"""
@@ -15,8 +17,8 @@ class LoginRequest(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
-                "username": "マネージャー田中",
-                "password": "admin123"
+                "username": "admin",
+                "password": "admin"
             }
         }
     }
@@ -28,6 +30,8 @@ class Token(BaseModel):
     access_token: str
     # トークンタイプ（Bearer固定）
     token_type: str = "bearer"
+    # ログインユーザー情報
+    user: Optional[StaffResponse] = None
 
 
 class TokenData(BaseModel):
