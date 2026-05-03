@@ -44,7 +44,7 @@ success "パッケージ更新完了"
 # ===== STEP 2: 必要パッケージインストール =====
 step "STEP 2: 必要パッケージのインストール"
 info "Python, PostgreSQL, Node.js, その他をインストールします..."
-pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography python-bcrypt rust libjpeg-turbo libpng freetype
+pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography rust libjpeg-turbo libpng freetype
 success "パッケージインストール完了"
 
 # ===== STEP 3: PostgreSQL セットアップ =====
@@ -81,7 +81,8 @@ LDFLAGS="-L${PREFIX}/lib" CFLAGS="-I${PREFIX}/include" pip install \
     sqlalchemy==2.0.36 \
     pg8000==1.31.2 \
     "python-jose==3.3.0" \
-    "passlib==1.7.4" \
+    "passlib[bcrypt]==1.7.4" \
+    "bcrypt==3.2.2" \
     python-multipart==0.0.9 \
     reportlab==4.2.0 \
     python-dotenv==1.0.1 \
