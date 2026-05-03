@@ -24,21 +24,16 @@ router = APIRouter()
 
 @router.get("/sales/daily", summary="日次売上レポート")
 def get_daily_sales(
-    target_date: date = Query(default=None, description="集計日（省略時は今日）"),
+    target_date: date = Query(default=None, alias="date", description="集計日（省略時は今日）"),
     db: Session = Depends(get_db),
     current_user: Staff = Depends(get_current_user)
 ):
-    """
-    指定日の売上レポートを返す
-    - 総売上・客数・セッション数・商品別売上
-    """
     if not target_date:
         target_date = date.today()
 
     day_start = datetime.combine(target_date, datetime.min.time())
     day_end = datetime.combine(target_date + timedelta(days=1), datetime.min.time())
 
-    # 精算済みセッションを取得
     sessions = db.query(BarSession).filter(
         BarSession.closed_at >= day_start,
         BarSession.closed_at < day_end,
@@ -47,17 +42,15 @@ def get_daily_sales(
 
     total_sales = sum(s.total for s in sessions)
     total_guests = sum(s.guest_count for s in sessions)
-    session_count = len(sessions)
 
-    # 商品別売上集計
     session_ids = [s.id for s in sessions]
-    product_sales = []
+    product_breakdown = []
     if session_ids:
-        product_sales_raw = db.query(
+        rows = db.query(
             Product.name,
             Product.category,
-            func.sum(OrderItem.qty).label("total_qty"),
-            func.sum(OrderItem.qty * OrderItem.unit_price).label("total_amount"),
+            func.sum(OrderItem.qty).label("qty"),
+            func.sum(OrderItem.qty * OrderItem.unit_price).label("total"),
         ).join(
             OrderItem, OrderItem.product_id == Product.id
         ).filter(
@@ -68,24 +61,27 @@ def get_daily_sales(
             func.sum(OrderItem.qty * OrderItem.unit_price).desc()
         ).all()
 
-        product_sales = [
-            {
-                "product_name": row.name,
-                "category": row.category,
-                "total_qty": row.total_qty,
-                "total_amount": row.total_amount,
-            }
-            for row in product_sales_raw
+        product_breakdown = [
+            {"product_name": r.name, "category": r.category, "qty": r.qty, "total": r.total}
+            for r in rows
         ]
 
+    # 時間帯別集計
+    hourly = {h: {"hour": h, "sales": 0, "guests": 0} for h in range(24)}
+    for s in sessions:
+        if s.closed_at:
+            h = s.closed_at.hour
+            hourly[h]["sales"] += s.total
+            hourly[h]["guests"] += s.guest_count
+
     return {
-        "date": target_date.isoformat(),
+        "period": target_date.isoformat(),
         "total_sales": total_sales,
         "total_guests": total_guests,
-        "session_count": session_count,
-        # 客単価（売上 ÷ 客数）
-        "avg_spend_per_guest": int(total_sales / total_guests) if total_guests > 0 else 0,
-        "product_sales": product_sales,
+        "avg_per_guest": int(total_sales / total_guests) if total_guests > 0 else 0,
+        "daily_data": [],
+        "product_breakdown": product_breakdown,
+        "hourly_data": list(hourly.values()),
     }
 
 
@@ -131,13 +127,13 @@ def get_monthly_sales(
     total_guests = sum(s.guest_count for s in sessions)
 
     return {
-        "year": year,
-        "month": month,
+        "period": f"{year}-{month:02d}",
         "total_sales": total_sales,
         "total_guests": total_guests,
-        "session_count": len(sessions),
-        "avg_daily_sales": int(total_sales / last_day),
-        "daily_breakdown": list(daily_data.values()),
+        "avg_per_guest": int(total_sales / total_guests) if total_guests > 0 else 0,
+        "daily_data": list(daily_data.values()),
+        "product_breakdown": [],
+        "hourly_data": [],
     }
 
 
@@ -178,12 +174,21 @@ def get_yearly_sales(
     total_sales = sum(s.total for s in sessions)
     total_guests = sum(s.guest_count for s in sessions)
 
+    monthly_list = list(monthly_data.values())
+    # daily_dataキーで返す（フロントエンドのSalesReport型に合わせる）
+    daily_data_for_chart = [
+        {"date": f"{year}-{m['month']:02d}-01", "sales": m["sales"], "guests": m["guests"]}
+        for m in monthly_list
+    ]
+
     return {
-        "year": year,
+        "period": str(year),
         "total_sales": total_sales,
         "total_guests": total_guests,
-        "session_count": len(sessions),
-        "monthly_breakdown": list(monthly_data.values()),
+        "avg_per_guest": int(total_sales / total_guests) if total_guests > 0 else 0,
+        "daily_data": daily_data_for_chart,
+        "product_breakdown": [],
+        "hourly_data": [],
     }
 
 
