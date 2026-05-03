@@ -44,7 +44,7 @@ success "パッケージ更新完了"
 # ===== STEP 2: 必要パッケージインストール =====
 step "STEP 2: 必要パッケージのインストール"
 info "Python, PostgreSQL, Node.js, その他をインストールします..."
-pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget
+pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography python-bcrypt
 success "パッケージインストール完了"
 
 # ===== STEP 3: PostgreSQL セットアップ =====
@@ -80,8 +80,8 @@ pip install \
     "uvicorn==0.24.0" \
     sqlalchemy==2.0.30 \
     psycopg2-binary==2.9.9 \
-    "python-jose[cryptography]==3.3.0" \
-    "passlib[bcrypt]==1.7.4" \
+    "python-jose==3.3.0" \
+    "passlib==1.7.4" \
     python-multipart==0.0.9 \
     reportlab==4.2.0 \
     python-dotenv==1.0.1 \
