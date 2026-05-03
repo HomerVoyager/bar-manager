@@ -44,7 +44,7 @@ success "パッケージ更新完了"
 # ===== STEP 2: 必要パッケージインストール =====
 step "STEP 2: 必要パッケージのインストール"
 info "Python, PostgreSQL, Node.js, その他をインストールします..."
-pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography python-bcrypt
+pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography python-bcrypt rust
 success "パッケージインストール完了"
 
 # ===== STEP 3: PostgreSQL セットアップ =====
