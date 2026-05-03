@@ -398,7 +398,8 @@ def seed_attendance(db, staff_list):
                 continue
 
             # 出退勤時刻（少しランダム性を持たせる）
-            clock_in = datetime.combine(work_date, time(open_h, open_m + random.randint(-5, 10)))
+            total_min = open_h * 60 + open_m + random.randint(-5, 10)
+            clock_in = datetime.combine(work_date, time(total_min // 60 % 24, total_min % 60))
             clock_out = clock_in + timedelta(minutes=duration + random.randint(-15, 30))
 
             work_minutes = int((clock_out - clock_in).total_seconds() / 60)
