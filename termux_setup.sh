@@ -79,7 +79,7 @@ LDFLAGS="-L${PREFIX}/lib" CFLAGS="-I${PREFIX}/include" pip install \
     "fastapi==0.104.1" \
     "uvicorn==0.24.0" \
     sqlalchemy==2.0.30 \
-    psycopg2==2.9.9 \
+    pg8000==1.31.2 \
     "python-jose==3.3.0" \
     "passlib==1.7.4" \
     python-multipart==0.0.9 \
@@ -136,7 +136,7 @@ if [ ! -f "$ENV_FILE" ]; then
     SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
     cat > "$ENV_FILE" << EOF
 # バー管理システム 環境変数設定
-DATABASE_URL=postgresql://bar_user:barpass123@localhost/bar_manager
+DATABASE_URL=postgresql+pg8000://bar_user:barpass123@localhost/bar_manager
 SECRET_KEY=${SECRET_KEY}
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=480
