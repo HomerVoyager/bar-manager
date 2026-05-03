@@ -44,7 +44,7 @@ success "パッケージ更新完了"
 # ===== STEP 2: 必要パッケージインストール =====
 step "STEP 2: 必要パッケージのインストール"
 info "Python, PostgreSQL, Node.js, その他をインストールします..."
-pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography python-bcrypt rust
+pkg install -y python postgresql nodejs-lts git openssh rclone cronie curl wget python-cryptography python-bcrypt rust libjpeg-turbo libpng freetype
 success "パッケージインストール完了"
 
 # ===== STEP 3: PostgreSQL セットアップ =====
@@ -75,7 +75,7 @@ success "PostgreSQL セットアップ完了"
 # ===== STEP 4: Python 依存関係インストール =====
 step "STEP 4: Python パッケージのインストール"
 info "FastAPI と関連パッケージをインストールします..."
-pip install \
+LDFLAGS="-L${PREFIX}/lib" CFLAGS="-I${PREFIX}/include" pip install \
     "fastapi==0.104.1" \
     "uvicorn==0.24.0" \
     sqlalchemy==2.0.30 \
