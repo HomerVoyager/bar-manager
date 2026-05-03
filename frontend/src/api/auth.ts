@@ -6,15 +6,9 @@ import type { LoginCredentials, AuthResponse } from '../types';
 
 // ログインAPIの呼び出し
 export const loginApi = async (credentials: LoginCredentials): Promise<AuthResponse> => {
-  // FastAPIのOAuth2形式に対応（application/x-www-form-urlencoded）
-  const formData = new FormData();
-  formData.append('username', credentials.username);
-  formData.append('password', credentials.password);
-
-  const response = await apiClient.post<AuthResponse>('/auth/login', formData, {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+  const response = await apiClient.post<AuthResponse>('/auth/login', {
+    username: credentials.username,
+    password: credentials.password,
   });
   return response.data;
 };
