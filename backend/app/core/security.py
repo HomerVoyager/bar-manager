@@ -9,8 +9,8 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 
-# パスワードハッシュコンテキスト（sha256_crypt使用、純粋Python）
-pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+# パスワードハッシュコンテキスト（pbkdf2_sha256使用、純粋Python）
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
