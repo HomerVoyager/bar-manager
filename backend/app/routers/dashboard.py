@@ -170,20 +170,15 @@ def get_dashboard(
         if s.closed_at:
             last_month_data[s.closed_at.day] += s.total
 
-    monthly_comparison = {
-        "this_month": {
-            "year": this_year,
-            "month": this_month,
-            "total": sum(this_month_data.values()),
-            "daily": [{"day": d, "sales": v} for d, v in this_month_data.items()],
-        },
-        "last_month": {
-            "year": last_month_year,
-            "month": last_month,
-            "total": sum(last_month_data.values()),
-            "daily": [{"day": d, "sales": v} for d, v in last_month_data.items()],
-        },
-    }
+    # フロントエンドが期待する { date, this_month, last_month }[] 形式に変換
+    max_days = max(this_month_days, last_month_days)
+    monthly_comparison = []
+    for d in range(1, max_days + 1):
+        monthly_comparison.append({
+            "date": str(d),
+            "this_month": this_month_data.get(d, 0),
+            "last_month": last_month_data.get(d, 0),
+        })
 
     return {
         "today_sales": today_sales,

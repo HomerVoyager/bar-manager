@@ -457,13 +457,11 @@ def get_fl_cost(
         "year": year,
         "month": month,
         "total_sales": total_sales,
-        "f_cost": f_cost,
-        "l_cost": l_cost,
-        "fl_cost": fl_cost,
-        "f_rate": round(f_rate, 1),
-        "l_rate": round(l_rate, 1),
-        "fl_rate": round(fl_rate, 1),
-        # 目標: FLコスト比率60%以下
+        "total_cost": f_cost,
+        "total_labor": l_cost,
+        "food_cost_rate": round(f_rate, 1),
+        "labor_cost_rate": round(l_rate, 1),
+        "fl_cost_rate": round(fl_rate, 1),
         "is_healthy": fl_rate <= 60.0,
     }
 
