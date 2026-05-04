@@ -46,11 +46,12 @@ def list_tables(
                 product_ids = [i.product_id for i in order_items]
                 prods = db.query(Product).filter(Product.id.in_(product_ids)).all()
                 product_names = {p.id: p.name for p in prods}
+            live_total = sum(oi.qty * oi.unit_price for oi in order_items)
             session_data = {
                 "id": active_session.id,
                 "guest_count": active_session.guest_count,
                 "started_at": active_session.started_at.isoformat(),
-                "total": active_session.total,
+                "total": live_total,
                 "status": active_session.status,
                 "plan_type": active_session.plan_type,
                 "time_limit_minutes": active_session.time_limit_minutes,

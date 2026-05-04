@@ -266,7 +266,10 @@ const Tables: React.FC = () => {
         }
       });
     },
-    onError: () => alert('注文の削除に失敗しました。'),
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? '注文の削除に失敗しました。');
+    },
   });
 
   // テーブルカードクリック処理
