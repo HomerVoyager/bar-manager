@@ -30,13 +30,13 @@ export const closeSession = async (id: number): Promise<Session> => {
 
 // 注文アイテムを追加
 export const addOrderItem = async (data: AddOrderItemForm): Promise<OrderItem> => {
-  const response = await apiClient.post<OrderItem>('/sessions/order-items', data);
+  const response = await apiClient.post<OrderItem>(`/sessions/${data.session_id}/items`, data);
   return response.data;
 };
 
 // 注文アイテムを削除
-export const removeOrderItem = async (itemId: number): Promise<void> => {
-  await apiClient.delete(`/sessions/order-items/${itemId}`);
+export const removeOrderItem = async ({ sessionId, itemId }: { sessionId: number; itemId: number }): Promise<void> => {
+  await apiClient.delete(`/sessions/${sessionId}/items/${itemId}`);
 };
 
 // セッションの注文アイテム一覧を取得

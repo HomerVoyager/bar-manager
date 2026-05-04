@@ -255,7 +255,8 @@ const Tables: React.FC = () => {
 
   // 注文アイテム削除ミューテーション
   const removeOrderMutation = useMutation({
-    mutationFn: removeOrderItem,
+    mutationFn: ({ sessionId, itemId }: { sessionId: number; itemId: number }) =>
+      removeOrderItem({ sessionId, itemId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       refetch().then((result) => {
@@ -699,7 +700,7 @@ const Tables: React.FC = () => {
                           {formatYen(item.unit_price * item.qty)}
                         </span>
                         <button
-                          onClick={() => removeOrderMutation.mutate(item.id)}
+                          onClick={() => removeOrderMutation.mutate({ sessionId: selectedTable.current_session!.id, itemId: item.id })}
                           className="p-1 text-gray-600 hover:text-red-400 transition-colors"
                           title="削除"
                         >
