@@ -257,7 +257,7 @@ const AttendancePage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-5 py-3 text-right text-gray-300">
-                        {summary.total_days}日
+                        {summary.work_days}日
                       </td>
                       <td className="px-5 py-3 text-right text-gray-300">
                         {minutesToHM(summary.total_work_minutes)}
@@ -266,7 +266,7 @@ const AttendancePage: React.FC = () => {
                         {minutesToHM(summary.total_night_minutes)}
                       </td>
                       <td className="px-5 py-3 text-right text-amber-400 font-semibold">
-                        {formatYen(summary.estimated_wage)}
+                        {formatYen(summary.total_wage)}
                       </td>
                       <td className="px-5 py-3 text-center">
                         <button

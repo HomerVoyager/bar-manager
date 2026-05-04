@@ -518,16 +518,12 @@ def get_product_margins(
         margin_rate = (gross_profit / total_sales * 100) if total_sales > 0 else 0
 
         products_data.append({
-            "product_id": product.id,
-            "product_name": product.name,
+            "id": product.id,
+            "name": product.name,
             "category": product.category,
             "price": product.price,
             "cost": product.cost,
-            "cost_rate": round(cost_rate, 1),
-            "total_qty_sold": total_qty,
-            "total_sales": total_sales,
-            "total_cost": total_cost,
-            "gross_profit": gross_profit,
+            "margin": gross_profit,
             "margin_rate": round(margin_rate, 1),
         })
 

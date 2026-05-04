@@ -42,7 +42,7 @@ export const fetchCostData = async (year: number, month: number): Promise<CostDa
 // 商品別原価・利益率データを取得
 export const fetchProductCostData = async () => {
   const response = await apiClient.get('/reports/cost/product-margins');
-  return response.data;
+  return response.data.products;
 };
 
 // 売上データをCSVエクスポート

@@ -141,10 +141,10 @@ export interface StockAdjustForm {
 export interface AttendanceSummary {
   staff_id: number;
   staff_name: string;
-  total_days: number;
+  work_days: number;
   total_work_minutes: number;
   total_night_minutes: number;
-  estimated_wage: number;
+  total_wage: number;
 }
 
 // セッション開始フォーム

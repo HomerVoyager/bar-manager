@@ -13,6 +13,36 @@ import Tables from './pages/Tables';
 import Staff from './pages/Staff';
 import LoadingSpinner from './components/LoadingSpinner';
 
+class PageErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+          <p className="text-red-400 text-lg font-semibold">ページの読み込みに失敗しました</p>
+          <p className="text-gray-500 text-sm">{this.state.error?.message}</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg"
+          >
+            再試行
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // 認証済みユーザーのみアクセス可能なルートラッパー
 const ProtectedRoute: React.FC<{ children: React.ReactNode; managerOnly?: boolean }> = ({
   children,
@@ -50,18 +80,18 @@ const App: React.FC = () => {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/sales" element={<Sales />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/cost" element={<Cost />} />
-        <Route path="/attendance" element={<Attendance />} />
-        <Route path="/tables" element={<Tables />} />
+        <Route path="/dashboard" element={<PageErrorBoundary><Dashboard /></PageErrorBoundary>} />
+        <Route path="/sales" element={<PageErrorBoundary><Sales /></PageErrorBoundary>} />
+        <Route path="/inventory" element={<PageErrorBoundary><Inventory /></PageErrorBoundary>} />
+        <Route path="/cost" element={<PageErrorBoundary><Cost /></PageErrorBoundary>} />
+        <Route path="/attendance" element={<PageErrorBoundary><Attendance /></PageErrorBoundary>} />
+        <Route path="/tables" element={<PageErrorBoundary><Tables /></PageErrorBoundary>} />
         {/* マネージャー専用 */}
         <Route
           path="/staff"
           element={
             <ProtectedRoute managerOnly>
-              <Staff />
+              <PageErrorBoundary><Staff /></PageErrorBoundary>
             </ProtectedRoute>
           }
         />

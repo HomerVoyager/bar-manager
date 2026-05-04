@@ -85,8 +85,8 @@ def get_dashboard(
             # 勤務時間（分）を計算
             work_minutes_so_far = int((now - att.clock_in).total_seconds() / 60) if att.clock_in else 0
             on_duty_staff.append({
-                "staff_id": staff.id,
-                "staff_name": staff.name,
+                "id": staff.id,
+                "name": staff.name,
                 "role": staff.role,
                 "clock_in": att.clock_in.isoformat() if att.clock_in else None,
                 "work_minutes_so_far": work_minutes_so_far,
