@@ -6,7 +6,7 @@ import type { Attendance, AttendanceSummary } from '../types';
 
 // 月次勤怠一覧を取得
 export const fetchAttendance = async (year: number, month: number): Promise<Attendance[]> => {
-  const response = await apiClient.get<Attendance[]>('/attendance', {
+  const response = await apiClient.get<Attendance[]>('/attendance/', {
     params: { year, month },
   });
   return response.data;

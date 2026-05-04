@@ -6,7 +6,7 @@ import type { Staff, CreateStaffForm } from '../types';
 
 // スタッフ一覧を取得
 export const fetchStaff = async (): Promise<Staff[]> => {
-  const response = await apiClient.get<Staff[]>('/staff');
+  const response = await apiClient.get<Staff[]>('/staff/');
   return response.data;
 };
 
@@ -18,7 +18,7 @@ export const fetchStaffById = async (id: number): Promise<Staff> => {
 
 // スタッフを新規作成
 export const createStaff = async (data: CreateStaffForm): Promise<Staff> => {
-  const response = await apiClient.post<Staff>('/staff', data);
+  const response = await apiClient.post<Staff>('/staff/', data);
   return response.data;
 };
 

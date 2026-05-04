@@ -6,7 +6,7 @@ import type { Session, OrderItem, OpenSessionForm, AddOrderItemForm } from '../t
 
 // セッション一覧を取得
 export const fetchSessions = async (): Promise<Session[]> => {
-  const response = await apiClient.get<Session[]>('/sessions');
+  const response = await apiClient.get<Session[]>('/sessions/active');
   return response.data;
 };
 

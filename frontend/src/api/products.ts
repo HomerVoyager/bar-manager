@@ -6,7 +6,7 @@ import type { Product } from '../types';
 
 // 商品一覧を取得（在庫情報含む）
 export const fetchProducts = async (): Promise<Product[]> => {
-  const response = await apiClient.get<Product[]>('/products');
+  const response = await apiClient.get<Product[]>('/products/');
   return response.data;
 };
 
@@ -24,7 +24,7 @@ export const fetchProductById = async (id: number): Promise<Product> => {
 
 // 商品を新規作成
 export const createProduct = async (data: Omit<Product, 'id' | 'is_low_stock'>): Promise<Product> => {
-  const response = await apiClient.post<Product>('/products', data);
+  const response = await apiClient.post<Product>('/products/', data);
   return response.data;
 };
 

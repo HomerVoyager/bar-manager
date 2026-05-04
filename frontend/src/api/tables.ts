@@ -6,7 +6,7 @@ import type { Table } from '../types';
 
 // テーブル一覧を取得（現在のステータス含む）
 export const fetchTables = async (): Promise<Table[]> => {
-  const response = await apiClient.get<Table[]>('/tables');
+  const response = await apiClient.get<Table[]>('/tables/');
   return response.data;
 };
 
