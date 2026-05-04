@@ -116,8 +116,11 @@ const Tables: React.FC = () => {
     register: registerOpen,
     handleSubmit: handleSubmitOpen,
     reset: resetOpen,
+    watch: watchOpen,
     formState: { errors: openErrors },
-  } = useForm<Omit<OpenSessionForm, 'table_id'>>();
+  } = useForm<Omit<OpenSessionForm, 'table_id'>>({ defaultValues: { plan_type: 'tanpin' } });
+
+  const selectedPlan = watchOpen('plan_type');
 
   // テーブルマスタフォーム
   const {
@@ -273,6 +276,8 @@ const Tables: React.FC = () => {
       table_id: selectedTable.id,
       staff_id: Number(data.staff_id),
       guest_count: Number(data.guest_count),
+      plan_type: data.plan_type,
+      time_limit_minutes: data.plan_type === 'nomi_hodai' ? Number(data.time_limit_minutes) : undefined,
     });
   };
 
@@ -546,6 +551,41 @@ const Tables: React.FC = () => {
                 <p className="mt-1 text-xs text-red-400">{openErrors.guest_count.message}</p>
               )}
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">料金プラン</label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" value="tanpin" {...registerOpen('plan_type')}
+                    className="accent-amber-500" />
+                  <span className="text-white text-sm">単品</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" value="nomi_hodai" {...registerOpen('plan_type')}
+                    className="accent-amber-500" />
+                  <span className="text-white text-sm">飲み放題</span>
+                </label>
+              </div>
+            </div>
+            {selectedPlan === 'nomi_hodai' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">制限時間（分）</label>
+                <input
+                  type="number"
+                  min="30"
+                  max="240"
+                  step="30"
+                  placeholder="例: 90"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  {...registerOpen('time_limit_minutes', {
+                    required: selectedPlan === 'nomi_hodai' ? '制限時間を入力してください' : false,
+                    min: { value: 30, message: '30分以上で入力してください' },
+                  })}
+                />
+                {openErrors.time_limit_minutes && (
+                  <p className="mt-1 text-xs text-red-400">{openErrors.time_limit_minutes.message}</p>
+                )}
+              </div>
+            )}
           </form>
         </Modal>
       )}
@@ -595,6 +635,18 @@ const Tables: React.FC = () => {
         >
           <div className="space-y-5">
             {/* セッション情報 */}
+            {selectedTable.current_session.plan_type === 'nomi_hodai' && (
+              <div className="flex items-center justify-between bg-indigo-900/30 border border-indigo-700 rounded-lg px-4 py-2 text-sm">
+                <span className="text-indigo-300 font-medium">🍺 飲み放題</span>
+                {selectedTable.current_session.time_limit_minutes && (() => {
+                  const elapsed = differenceInMinutes(new Date(), new Date(selectedTable.current_session!.started_at));
+                  const remaining = selectedTable.current_session.time_limit_minutes - elapsed;
+                  return remaining > 0
+                    ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
+                    : <span className="text-red-400 font-bold animate-pulse">時間終了</span>;
+                })()}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div className="bg-gray-900 rounded-lg p-3 text-center">
                 <p className="text-gray-400 text-xs mb-1">客数</p>

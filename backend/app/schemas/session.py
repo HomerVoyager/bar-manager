@@ -15,6 +15,8 @@ class SessionBase(BaseModel):
     table_id: int = Field(..., description="テーブルID")
     staff_id: Optional[int] = Field(None, description="担当スタッフID")
     guest_count: int = Field(default=1, ge=1, description="来店人数")
+    plan_type: str = Field(default="tanpin", description="料金プラン: tanpin/nomi_hodai")
+    time_limit_minutes: Optional[int] = Field(None, description="飲み放題の制限時間（分）")
 
 
 class SessionCreate(SessionBase):
@@ -24,7 +26,8 @@ class SessionCreate(SessionBase):
             "example": {
                 "table_id": 1,
                 "staff_id": 1,
-                "guest_count": 3
+                "guest_count": 3,
+                "plan_type": "tanpin"
             }
         }
     }
@@ -54,6 +57,8 @@ class SessionBrief(BaseModel):
     started_at: datetime
     total: int
     status: str
+    plan_type: str = "tanpin"
+    time_limit_minutes: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

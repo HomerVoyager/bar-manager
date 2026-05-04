@@ -18,7 +18,7 @@ export const fetchSessionById = async (id: number): Promise<Session> => {
 
 // セッションを開始（開卓）
 export const openSession = async (data: OpenSessionForm): Promise<Session> => {
-  const response = await apiClient.post<Session>('/sessions', data);
+  const response = await apiClient.post<Session>('/sessions/', data);
   return response.data;
 };
 

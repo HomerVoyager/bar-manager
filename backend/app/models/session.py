@@ -38,6 +38,12 @@ class Session(Base):
     # closed: 精算済み
     status = Column(String(20), default="open", nullable=False)
 
+    # 料金プラン: tanpin（単品）/ nomi_hodai（飲み放題）
+    plan_type = Column(String(20), default="tanpin", nullable=False)
+
+    # 飲み放題の制限時間（分）
+    time_limit_minutes = Column(Integer, nullable=True)
+
     # リレーションシップ
     table = relationship("Table", back_populates="sessions")
     staff = relationship("Staff", back_populates="sessions")

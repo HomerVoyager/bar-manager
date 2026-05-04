@@ -18,7 +18,7 @@ export const fetchTableById = async (id: number): Promise<Table> => {
 
 // テーブルを新規作成
 export const createTable = async (data: { name: string; capacity: number }): Promise<Table> => {
-  const response = await apiClient.post<Table>('/tables', data);
+  const response = await apiClient.post<Table>('/tables/', data);
   return response.data;
 };
 

@@ -45,6 +45,8 @@ export interface Session {
   closed_at?: string;
   total: number;
   status: 'open' | 'closed';
+  plan_type: 'tanpin' | 'nomi_hodai';
+  time_limit_minutes?: number;
   items?: OrderItem[];
 }
 
@@ -150,6 +152,8 @@ export interface OpenSessionForm {
   table_id: number;
   staff_id: number;
   guest_count: number;
+  plan_type: 'tanpin' | 'nomi_hodai';
+  time_limit_minutes?: number;
 }
 
 // 注文追加フォーム
