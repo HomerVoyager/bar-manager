@@ -38,12 +38,14 @@ def list_tables(
 
         session_data = None
         if active_session:
-            items = (
-                db.query(OrderItem, Product.name)
-                .join(Product, OrderItem.product_id == Product.id)
-                .filter(OrderItem.session_id == active_session.id)
-                .all()
-            )
+            order_items = db.query(OrderItem).filter(
+                OrderItem.session_id == active_session.id
+            ).all()
+            product_names: dict = {}
+            if order_items:
+                product_ids = [i.product_id for i in order_items]
+                prods = db.query(Product).filter(Product.id.in_(product_ids)).all()
+                product_names = {p.id: p.name for p in prods}
             session_data = {
                 "id": active_session.id,
                 "guest_count": active_session.guest_count,
@@ -57,12 +59,12 @@ def list_tables(
                         "id": oi.id,
                         "session_id": oi.session_id,
                         "product_id": oi.product_id,
-                        "product_name": pname,
+                        "product_name": product_names.get(oi.product_id, ""),
                         "qty": oi.qty,
                         "unit_price": oi.unit_price,
-                        "ordered_at": oi.ordered_at.isoformat(),
+                        "ordered_at": oi.ordered_at.isoformat() if oi.ordered_at else None,
                     }
-                    for oi, pname in items
+                    for oi in order_items
                 ],
             }
 
