@@ -65,6 +65,8 @@ async def open_session(
         table_id=session_data.table_id,
         staff_id=session_data.staff_id or current_user.id,
         guest_count=session_data.guest_count,
+        plan_type=session_data.plan_type,
+        time_limit_minutes=session_data.time_limit_minutes,
     )
     db.add(new_session)
 

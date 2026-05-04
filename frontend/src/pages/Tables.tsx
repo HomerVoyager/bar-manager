@@ -218,7 +218,10 @@ const Tables: React.FC = () => {
       resetOpen();
       refetch();
     },
-    onError: () => alert('卓の開設に失敗しました。'),
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? '卓の開設に失敗しました。');
+    },
   });
 
   // 会計（セッション終了）ミューテーション
