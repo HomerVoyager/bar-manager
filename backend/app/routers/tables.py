@@ -10,6 +10,8 @@ from app.core.deps import get_current_user, get_current_manager
 from app.models.staff import Staff
 from app.models.table import Table
 from app.models.session import Session as BarSession
+from app.models.order_item import OrderItem
+from app.models.product import Product
 from app.schemas.table import TableCreate, TableUpdate, TableResponse, TableStatusUpdate
 
 router = APIRouter()
@@ -34,18 +36,43 @@ def list_tables(
             BarSession.status == "open"
         ).first()
 
+        session_data = None
+        if active_session:
+            items = (
+                db.query(OrderItem, Product.name)
+                .join(Product, OrderItem.product_id == Product.id)
+                .filter(OrderItem.session_id == active_session.id)
+                .all()
+            )
+            session_data = {
+                "id": active_session.id,
+                "guest_count": active_session.guest_count,
+                "started_at": active_session.started_at.isoformat(),
+                "total": active_session.total,
+                "status": active_session.status,
+                "plan_type": active_session.plan_type,
+                "time_limit_minutes": active_session.time_limit_minutes,
+                "items": [
+                    {
+                        "id": oi.id,
+                        "session_id": oi.session_id,
+                        "product_id": oi.product_id,
+                        "product_name": pname,
+                        "qty": oi.qty,
+                        "unit_price": oi.unit_price,
+                        "ordered_at": oi.ordered_at.isoformat(),
+                    }
+                    for oi, pname in items
+                ],
+            }
+
         table_data = {
             "id": table.id,
             "name": table.name,
             "capacity": table.capacity,
             "status": table.status,
             "current_session_id": active_session.id if active_session else None,
-            "current_session": {
-                "id": active_session.id,
-                "guest_count": active_session.guest_count,
-                "started_at": active_session.started_at.isoformat(),
-                "total": active_session.total,
-            } if active_session else None
+            "current_session": session_data,
         }
         result.append(table_data)
 
