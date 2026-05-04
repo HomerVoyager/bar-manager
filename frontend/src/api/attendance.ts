@@ -26,13 +26,13 @@ export const fetchAttendanceByStaff = async (
 
 // 出勤打刻（クロックイン）
 export const clockIn = async (staffId: number): Promise<Attendance> => {
-  const response = await apiClient.post<Attendance>(`/attendance/clock-in/${staffId}`);
+  const response = await apiClient.post<Attendance>('/attendance/clock-in', { staff_id: staffId });
   return response.data;
 };
 
 // 退勤打刻（クロックアウト）
 export const clockOut = async (staffId: number): Promise<Attendance> => {
-  const response = await apiClient.post<Attendance>(`/attendance/clock-out/${staffId}`);
+  const response = await apiClient.post<Attendance>('/attendance/clock-out', { staff_id: staffId });
   return response.data;
 };
 

@@ -6,7 +6,7 @@ import type { DashboardData } from '../types';
 
 // ダッシュボードデータを取得
 export const fetchDashboard = async (): Promise<DashboardData> => {
-  const response = await apiClient.get<DashboardData>('/dashboard');
+  const response = await apiClient.get<DashboardData>('/dashboard/');
   return response.data;
 };
 

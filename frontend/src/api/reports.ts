@@ -33,7 +33,7 @@ export const fetchYearlySalesReport = async (year: number): Promise<SalesReport>
 
 // 原価データを取得（FLコスト計算用）
 export const fetchCostData = async (year: number, month: number): Promise<CostData> => {
-  const response = await apiClient.get<CostData>('/reports/cost', {
+  const response = await apiClient.get<CostData>('/reports/cost/fl-cost', {
     params: { year, month },
   });
   return response.data;
@@ -41,7 +41,7 @@ export const fetchCostData = async (year: number, month: number): Promise<CostDa
 
 // 商品別原価・利益率データを取得
 export const fetchProductCostData = async () => {
-  const response = await apiClient.get('/reports/cost/products');
+  const response = await apiClient.get('/reports/cost/product-margins');
   return response.data;
 };
 
