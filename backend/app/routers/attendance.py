@@ -177,6 +177,17 @@ def get_today_attendance(
     return attendances
 
 
+@router.get("/monthly-summary", response_model=List[MonthlyWageResponse], summary="月次給与サマリー取得")
+def get_monthly_summary(
+    year: int = Query(..., description="年"),
+    month: int = Query(..., description="月"),
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager)
+):
+    all_staff = db.query(Staff).filter(Staff.is_active == True).all()  # noqa: E712
+    return [calculate_monthly_wages(db, s.id, year, month) for s in all_staff]
+
+
 @router.post("/monthly-close", response_model=List[MonthlyWageResponse], summary="月次給与締め")
 def monthly_close(
     year: int = Query(..., description="年"),
@@ -184,20 +195,8 @@ def monthly_close(
     db: Session = Depends(get_db),
     current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
 ):
-    """
-    指定した月の全スタッフの給与を計算して返す
-    給与明細の作成に使用
-    マネージャー権限が必要
-    """
-    # 全在籍スタッフを取得
     all_staff = db.query(Staff).filter(Staff.is_active == True).all()  # noqa: E712
-
-    results = []
-    for staff in all_staff:
-        wage_data = calculate_monthly_wages(db, staff.id, year, month)
-        results.append(wage_data)
-
-    return results
+    return [calculate_monthly_wages(db, s.id, year, month) for s in all_staff]
 
 
 @router.get("/payslip/{staff_id}/{year}/{month}", response_model=PayslipResponse, summary="給与明細取得")

@@ -47,6 +47,15 @@ def list_products(
     return result
 
 
+@router.get("/categories", response_model=List[str], summary="商品カテゴリ一覧取得")
+def list_categories(
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_user)
+):
+    rows = db.query(Product.category).filter(Product.is_active == True, Product.category != None).distinct().all()  # noqa: E711,E712
+    return sorted([r[0] for r in rows if r[0]])
+
+
 @router.get("/low-stock", response_model=List[ProductResponse], summary="在庫アラート商品一覧")
 def get_low_stock_products(
     db: Session = Depends(get_db),

@@ -18,8 +18,8 @@ export const fetchAttendanceByStaff = async (
   year: number,
   month: number
 ): Promise<Attendance[]> => {
-  const response = await apiClient.get<Attendance[]>(`/attendance/staff/${staffId}`, {
-    params: { year, month },
+  const response = await apiClient.get<Attendance[]>('/attendance/', {
+    params: { staff_id: staffId, year, month },
   });
   return response.data;
 };
@@ -49,9 +49,8 @@ export const fetchMonthlySummary = async (
 
 // 月次締め処理
 export const monthlyClose = async (year: number, month: number): Promise<{ message: string }> => {
-  const response = await apiClient.post<{ message: string }>('/attendance/monthly-close', {
-    year,
-    month,
+  const response = await apiClient.post<{ message: string }>('/attendance/monthly-close', null, {
+    params: { year, month },
   });
   return response.data;
 };

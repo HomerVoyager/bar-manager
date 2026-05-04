@@ -115,6 +115,38 @@ def update_staff(
     return staff
 
 
+@router.patch("/{staff_id}/deactivate", response_model=StaffResponse, summary="スタッフ無効化")
+def deactivate_staff(
+    staff_id: int,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager)
+):
+    staff = db.query(Staff).filter(Staff.id == staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"スタッフID {staff_id} が見つかりません")
+    if staff_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="自分自身を無効化することはできません")
+    staff.is_active = False
+    db.commit()
+    db.refresh(staff)
+    return staff
+
+
+@router.patch("/{staff_id}/activate", response_model=StaffResponse, summary="スタッフ有効化")
+def activate_staff(
+    staff_id: int,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager)
+):
+    staff = db.query(Staff).filter(Staff.id == staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"スタッフID {staff_id} が見つかりません")
+    staff.is_active = True
+    db.commit()
+    db.refresh(staff)
+    return staff
+
+
 @router.delete("/{staff_id}", status_code=status.HTTP_204_NO_CONTENT, summary="スタッフ削除（論理削除）")
 def delete_staff(
     staff_id: int,
