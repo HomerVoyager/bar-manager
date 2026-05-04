@@ -140,7 +140,10 @@ const Tables: React.FC = () => {
       resetTable();
       refetch();
     },
-    onError: () => alert('テーブルの登録に失敗しました。'),
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? 'テーブルの登録に失敗しました。');
+    },
   });
 
   // テーブル更新ミューテーション
@@ -154,7 +157,10 @@ const Tables: React.FC = () => {
       resetTable();
       refetch();
     },
-    onError: () => alert('テーブルの更新に失敗しました。'),
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? 'テーブルの更新に失敗しました。');
+    },
   });
 
   // テーブル削除ミューテーション
