@@ -64,7 +64,10 @@ const StaffPage: React.FC = () => {
       setEditingStaff(null);
       resetEdit();
     },
-    onError: () => alert('スタッフ情報の更新に失敗しました。'),
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { detail?: string } } };
+      alert(`スタッフ情報の更新に失敗しました: ${error?.response?.data?.detail ?? '不明なエラー'}`);
+    },
   });
 
   // スタッフ無効化ミューテーション
@@ -116,13 +119,14 @@ const StaffPage: React.FC = () => {
   // スタッフ編集の送信
   const onEditSubmit = (data: Partial<CreateStaffForm>) => {
     if (!editingStaff) return;
-    updateMutation.mutate({
-      id: editingStaff.id,
-      data: {
-        ...data,
-        hourly_wage: data.hourly_wage ? Number(data.hourly_wage) : undefined,
-      },
-    });
+    const updateData: Partial<CreateStaffForm> = {
+      name: data.name,
+      role: data.role,
+      hourly_wage: data.hourly_wage ? Number(data.hourly_wage) : undefined,
+    };
+    // パスワードは入力された場合のみ送信（空欄はバリデーションエラーになるため除外）
+    if (data.password) updateData.password = data.password;
+    updateMutation.mutate({ id: editingStaff.id, data: updateData });
   };
 
   // スタッフ数の集計
