@@ -4,6 +4,12 @@
 import { apiClient } from './client';
 import type { Attendance, AttendanceSummary } from '../types';
 
+// 本日の勤怠一覧を取得
+export const fetchTodayAttendance = async (): Promise<Attendance[]> => {
+  const response = await apiClient.get<Attendance[]>('/attendance/today');
+  return response.data;
+};
+
 // 月次勤怠一覧を取得
 export const fetchAttendance = async (year: number, month: number): Promise<Attendance[]> => {
   const response = await apiClient.get<Attendance[]>('/attendance/', {
