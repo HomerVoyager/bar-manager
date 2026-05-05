@@ -68,7 +68,10 @@ const AttendancePage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
-    onError: () => alert('出勤打刻に失敗しました。'),
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail;
+      alert(detail || '出勤打刻に失敗しました。');
+    },
   });
 
   // クロックアウトミューテーション
@@ -78,7 +81,10 @@ const AttendancePage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
-    onError: () => alert('退勤打刻に失敗しました。'),
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail;
+      alert(detail || '退勤打刻に失敗しました。');
+    },
   });
 
   // 月次締め処理ミューテーション

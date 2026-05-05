@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, contains_eager
 from typing import List, Optional
 from datetime import datetime, date
 
@@ -44,12 +44,11 @@ def clock_in(
         Attendance.date == today
     ).first()
 
-    if existing:
-        if existing.clock_in:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"本日は既に出勤打刻済みです（出勤時刻: {existing.clock_in.strftime('%H:%M')}）"
-            )
+    if existing and existing.clock_in:
+        # 既に打刻済みの場合は既存レコードを返す（冪等）
+        return db.query(Attendance).options(joinedload(Attendance.staff)).filter(
+            Attendance.id == existing.id
+        ).first()
 
     # 新規出勤記録を作成
     attendance = Attendance(
@@ -59,9 +58,10 @@ def clock_in(
     )
     db.add(attendance)
     db.commit()
-    db.refresh(attendance)
 
-    return attendance
+    return db.query(Attendance).options(joinedload(Attendance.staff)).filter(
+        Attendance.id == attendance.id
+    ).first()
 
 
 @router.post("/clock-out", response_model=AttendanceResponse, summary="退勤打刻")
@@ -90,10 +90,10 @@ def clock_out(
         )
 
     if attendance.clock_out:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"本日は既に退勤打刻済みです（退勤時刻: {attendance.clock_out.strftime('%H:%M')}）"
-        )
+        # 既に退勤済みの場合は既存レコードを返す（冪等）
+        return db.query(Attendance).options(joinedload(Attendance.staff)).filter(
+            Attendance.id == attendance.id
+        ).first()
 
     # 勤務時間（分）を計算
     work_minutes = int((clock_out_time - attendance.clock_in).total_seconds() / 60)
@@ -118,9 +118,10 @@ def clock_out(
     attendance.wage = calculate_daily_wage(staff, attendance)
 
     db.commit()
-    db.refresh(attendance)
 
-    return attendance
+    return db.query(Attendance).options(joinedload(Attendance.staff)).filter(
+        Attendance.id == attendance.id
+    ).first()
 
 
 @router.get("/", response_model=List[AttendanceResponse], summary="勤怠一覧取得")
