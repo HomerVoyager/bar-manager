@@ -1,88 +1,87 @@
-// バー管理システム - 勤怠管理ページ
-
-import React, { useState } from 'react';
+// 共有タブレット打刻ページ
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, getYear, getMonth } from 'date-fns';
-import {
-  Clock, Users, Download, Lock, LogIn, LogOut,
-  CheckCircle, ChevronDown, ChevronUp,
-} from 'lucide-react';
-import {
-  fetchAttendance,
-  fetchTodayAttendance,
-  fetchMonthlySummary,
-  clockIn,
-  clockOut,
-  monthlyClose,
-  downloadPayslipPdf,
-} from '../api/attendance';
+import { format, startOfWeek, addDays } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import { Clock, LogIn, LogOut, CheckCircle } from 'lucide-react';
+import { fetchTodayAttendance, clockIn, clockOut } from '../api/attendance';
 import { fetchStaff } from '../api/staff';
-import { useAuth } from '../hooks/useAuth';
-import LoadingSpinner from '../components/LoadingSpinner';
-import type { Attendance, AttendanceSummary, Staff } from '../types';
+import { fetchShifts } from '../api/shifts';
+import type { Attendance, Staff, Shift } from '../types';
 
-const minutesToHM = (minutes?: number): string => {
-  if (!minutes || minutes === 0) return '-';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}時間${m > 0 ? m + '分' : ''}`;
+type ClockStatus = 'before' | 'in' | 'done';
+
+const getStatus = (attendance?: Attendance): ClockStatus => {
+  if (!attendance?.clock_in) return 'before';
+  if (!attendance?.clock_out) return 'in';
+  return 'done';
 };
 
-const formatYen = (amount?: number): string => {
-  if (!amount) return '-';
-  return `¥${amount.toLocaleString('ja-JP')}`;
+const statusLabel: Record<ClockStatus, string> = {
+  before: '未出勤',
+  in: '出勤中',
+  done: '退勤済',
+};
+
+const statusColor: Record<ClockStatus, string> = {
+  before: 'bg-gray-700 border-gray-600 text-gray-300',
+  in: 'bg-green-900 border-green-500 text-white',
+  done: 'bg-gray-800 border-gray-700 text-gray-500',
+};
+
+const badgeColor: Record<ClockStatus, string> = {
+  before: 'bg-gray-600 text-gray-300',
+  in: 'bg-green-500 text-white',
+  done: 'bg-gray-600 text-gray-400',
 };
 
 const AttendancePage: React.FC = () => {
-  const { user, isManager } = useAuth();
-  const [selectedYear, setSelectedYear] = useState<number>(getYear(new Date()));
-  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()) + 1);
-  const [activeView, setActiveView] = useState<'detail' | 'summary'>('summary');
-  const [managerSectionOpen, setManagerSectionOpen] = useState(false);
   const queryClient = useQueryClient();
+  const [now, setNow] = useState(new Date());
+  const [confirm, setConfirm] = useState<{ staff: Staff; action: 'in' | 'out' } | null>(null);
 
-  const yearOptions = Array.from({ length: 3 }, (_, i) => getYear(new Date()) - i);
-  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  // 本日の勤怠（自分の打刻状態確認用）
-  const { data: todayList, isLoading: todayLoading } = useQuery<Attendance[]>({
-    queryKey: ['attendance-today'],
-    queryFn: fetchTodayAttendance,
-    refetchInterval: 30000,
-  });
+  const today = format(now, 'yyyy-MM-dd');
+  const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const weekEnd = format(addDays(startOfWeek(now, { weekStartsOn: 1 }), 6), 'yyyy-MM-dd');
 
-  // ログイン中ユーザーの本日記録
-  const myToday = todayList?.find((a) => a.staff_id === user?.id);
-  const isClockedIn = !!myToday?.clock_in;
-  const isClockedOut = !!myToday?.clock_out;
-
-  const { data: staffList } = useQuery<Staff[]>({
+  const { data: staffList = [] } = useQuery<Staff[]>({
     queryKey: ['staff'],
     queryFn: fetchStaff,
   });
 
-  const { data: attendanceList, isLoading: attendanceLoading } = useQuery<Attendance[]>({
-    queryKey: ['attendance', selectedYear, selectedMonth],
-    queryFn: () => fetchAttendance(selectedYear, selectedMonth),
-    enabled: activeView === 'detail',
+  const { data: todayList = [] } = useQuery<Attendance[]>({
+    queryKey: ['attendance-today'],
+    queryFn: fetchTodayAttendance,
+    refetchInterval: 15000,
   });
 
-  const { data: summaryList, isLoading: summaryLoading } = useQuery<AttendanceSummary[]>({
-    queryKey: ['attendance-summary', selectedYear, selectedMonth],
-    queryFn: () => fetchMonthlySummary(selectedYear, selectedMonth),
-    enabled: activeView === 'summary',
+  const { data: shifts = [] } = useQuery<Shift[]>({
+    queryKey: ['shifts-week', weekStart, weekEnd],
+    queryFn: () => fetchShifts(weekStart, weekEnd),
   });
+
+  const activeStaff = staffList.filter((s) => s.is_active);
+
+  const getAttendance = (staffId: number) =>
+    todayList.find((a) => a.staff_id === staffId);
+
+  const getTodayShift = (staffId: number) =>
+    shifts.find((s) => s.staff_id === staffId && s.date === today);
 
   const clockInMutation = useMutation({
     mutationFn: clockIn,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] });
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      setConfirm(null);
     },
-    onError: (error: any) => {
-      const detail = error?.response?.data?.detail;
-      alert(detail || '出勤打刻に失敗しました。');
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || '出勤打刻に失敗しました');
+      setConfirm(null);
     },
   });
 
@@ -90,375 +89,142 @@ const AttendancePage: React.FC = () => {
     mutationFn: clockOut,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] });
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      setConfirm(null);
     },
-    onError: (error: any) => {
-      const detail = error?.response?.data?.detail;
-      alert(detail || '退勤打刻に失敗しました。');
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || '退勤打刻に失敗しました');
+      setConfirm(null);
     },
   });
 
-  const monthlyCloseMutation = useMutation({
-    mutationFn: () => monthlyClose(selectedYear, selectedMonth),
-    onSuccess: () => {
-      alert('月次締め処理が完了しました。');
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-    },
-    onError: () => alert('月次締め処理に失敗しました。'),
-  });
-
-  const handleDownloadPayslip = async (staffId: number, staffName: string) => {
-    try {
-      const blob = await downloadPayslipPdf(staffId, selectedYear, selectedMonth);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `payslip_${staffName}_${selectedYear}${String(selectedMonth).padStart(2, '0')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      alert('給与明細PDFのダウンロードに失敗しました。');
-    }
+  const handleConfirm = () => {
+    if (!confirm) return;
+    if (confirm.action === 'in') clockInMutation.mutate(confirm.staff.id);
+    else clockOutMutation.mutate(confirm.staff.id);
   };
 
-  const handleMonthlyClose = () => {
-    if (window.confirm(
-      `${selectedYear}年${selectedMonth}月の月次締め処理を実行しますか？\nこの操作は元に戻せません。`
-    )) {
-      monthlyCloseMutation.mutate();
-    }
+  const handleCardTap = (staff: Staff) => {
+    const att = getAttendance(staff.id);
+    const status = getStatus(att);
+    if (status === 'done') return;
+    setConfirm({ staff, action: status === 'before' ? 'in' : 'out' });
   };
+
+  const isPending = clockInMutation.isPending || clockOutMutation.isPending;
 
   return (
-    <div className="space-y-6">
-      {/* ページヘッダー */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white">勤怠管理</h2>
-          <p className="text-gray-400 text-sm mt-1">
-            {format(new Date(), 'yyyy年M月d日')}
-          </p>
-        </div>
-        {isManager && (
-          <button
-            onClick={handleMonthlyClose}
-            disabled={monthlyCloseMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-900 text-white rounded-lg transition-colors text-sm"
-          >
-            <Lock className="w-4 h-4" />
-            月次締め処理
-          </button>
-        )}
+    <div className="min-h-screen bg-gray-950 p-4">
+      {/* 時計ヘッダー */}
+      <div className="text-center mb-8">
+        <p className="text-gray-400 text-lg">
+          {format(now, 'yyyy年M月d日（E）', { locale: ja })}
+        </p>
+        <p className="text-white text-6xl font-bold tracking-widest mt-1">
+          {format(now, 'HH:mm:ss')}
+        </p>
       </div>
 
-      {/* ===== 自分の打刻カード ===== */}
-      <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Clock className="w-5 h-5 text-amber-400" />
-          <h3 className="text-white font-semibold text-lg">今日の打刻</h3>
-        </div>
+      {/* スタッフカードグリッド */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
+        {activeStaff.map((staff) => {
+          const att = getAttendance(staff.id);
+          const status = getStatus(att);
+          const shift = getTodayShift(staff.id);
 
-        {todayLoading ? (
-          <LoadingSpinner message="打刻状態を確認中..." />
-        ) : (
-          <div className="flex flex-col items-center gap-5">
-            {/* ユーザーアバター & 名前 */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-20 h-20 rounded-full bg-amber-700 flex items-center justify-center">
-                <span className="text-white text-3xl font-bold">
-                  {user?.name?.charAt(0) ?? '?'}
-                </span>
-              </div>
-              <div className="text-center">
-                <p className="text-white text-xl font-bold">{user?.name}</p>
-                <p className="text-gray-400 text-sm">
-                  {user?.role === 'manager' ? 'マネージャー' : 'スタッフ'}
-                </p>
-              </div>
-            </div>
-
-            {/* 打刻状態 */}
-            {isClockedOut ? (
-              /* 退勤済み */
-              <div className="w-full max-w-xs bg-gray-700/50 rounded-xl p-4 text-center space-y-1">
-                <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                <p className="text-green-400 font-semibold">本日の勤務完了</p>
-                <p className="text-gray-400 text-sm">
-                  出勤 {myToday?.clock_in ? format(new Date(myToday.clock_in), 'HH:mm') : '-'}
-                  　→
-                  退勤 {myToday?.clock_out ? format(new Date(myToday.clock_out), 'HH:mm') : '-'}
-                </p>
-                {myToday?.work_minutes && (
-                  <p className="text-gray-400 text-sm">
-                    勤務時間: {minutesToHM(myToday.work_minutes)}
-                  </p>
-                )}
-              </div>
-            ) : isClockedIn ? (
-              /* 出勤中 → 退勤ボタン */
-              <div className="w-full max-w-xs flex flex-col items-center gap-3">
-                <div className="bg-green-900/30 border border-green-700 rounded-xl p-3 text-center w-full">
-                  <p className="text-green-400 text-sm font-medium">出勤中</p>
-                  <p className="text-white text-lg font-bold">
-                    {myToday?.clock_in ? format(new Date(myToday.clock_in), 'HH:mm') : '-'} から
-                  </p>
+          return (
+            <button
+              key={staff.id}
+              onClick={() => handleCardTap(staff)}
+              disabled={status === 'done'}
+              className={`
+                rounded-2xl border-2 p-5 text-left transition-all duration-150
+                ${statusColor[status]}
+                ${status !== 'done' ? 'hover:scale-105 active:scale-95 cursor-pointer' : 'cursor-default opacity-60'}
+              `}
+            >
+              {/* アバター */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0
+                  ${status === 'in' ? 'bg-green-600' : 'bg-gray-600'}`}>
+                  {staff.name.charAt(0)}
                 </div>
-                <button
-                  onClick={() => user && clockOutMutation.mutate(user.id)}
-                  disabled={clockOutMutation.isPending}
-                  className="w-full py-5 bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-red-900 text-white rounded-2xl text-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg"
-                >
-                  <LogOut className="w-6 h-6" />
-                  退勤する
-                </button>
+                <div>
+                  <p className="font-bold text-lg leading-tight">{staff.name}</p>
+                  <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${badgeColor[status]}`}>
+                    {statusLabel[status]}
+                  </span>
+                </div>
               </div>
-            ) : (
-              /* 未打刻 → 出勤ボタン */
-              <div className="w-full max-w-xs">
-                <button
-                  onClick={() => user && clockInMutation.mutate(user.id)}
-                  disabled={clockInMutation.isPending}
-                  className="w-full py-5 bg-green-600 hover:bg-green-500 active:bg-green-700 disabled:bg-green-900 text-white rounded-2xl text-xl font-bold transition-colors flex items-center justify-center gap-3 shadow-lg"
-                >
-                  <LogIn className="w-6 h-6" />
-                  出勤する
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+
+              {/* シフト時間 */}
+              {shift ? (
+                <p className="text-sm text-amber-400 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  {shift.start_time} 〜 {shift.end_time}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">シフトなし</p>
+              )}
+
+              {/* 打刻時刻 */}
+              {status !== 'before' && (
+                <div className="mt-2 text-xs text-gray-400 space-y-0.5">
+                  {att?.clock_in && (
+                    <p className="flex items-center gap-1">
+                      <LogIn className="w-3 h-3 text-green-400" />
+                      {format(new Date(att.clock_in), 'HH:mm')}
+                    </p>
+                  )}
+                  {att?.clock_out && (
+                    <p className="flex items-center gap-1">
+                      <LogOut className="w-3 h-3 text-gray-400" />
+                      {format(new Date(att.clock_out), 'HH:mm')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 退勤済みアイコン */}
+              {status === 'done' && (
+                <CheckCircle className="w-5 h-5 text-gray-500 mt-2" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ===== マネージャー専用: 他スタッフ打刻 ===== */}
-      {isManager && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700">
-          <button
-            onClick={() => setManagerSectionOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-amber-400" />
-              <span className="text-white font-medium text-sm">他スタッフの打刻（マネージャー操作）</span>
+      {/* 確認モーダル */}
+      {confirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="w-20 h-20 rounded-full bg-amber-700 flex items-center justify-center text-4xl font-bold text-white mx-auto mb-4">
+              {confirm.staff.name.charAt(0)}
             </div>
-            {managerSectionOpen
-              ? <ChevronUp className="w-4 h-4 text-gray-400" />
-              : <ChevronDown className="w-4 h-4 text-gray-400" />
-            }
-          </button>
-
-          {managerSectionOpen && (
-            <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border-t border-gray-700 pt-4">
-              {staffList?.filter((s) => s.is_active && s.id !== user?.id).map((staff) => {
-                const staffToday = todayList?.find((a) => a.staff_id === staff.id);
-                const sIn = !!staffToday?.clock_in;
-                const sOut = !!staffToday?.clock_out;
-                return (
-                  <div
-                    key={staff.id}
-                    className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-3"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${sIn && !sOut ? 'bg-green-700' : sOut ? 'bg-gray-600' : 'bg-amber-700'}`}>
-                        <span className="text-white text-sm font-medium">{staff.name.charAt(0)}</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-white text-sm truncate">{staff.name}</p>
-                        <p className="text-gray-500 text-xs">
-                          {sOut ? `退勤済み ${staffToday?.clock_out ? format(new Date(staffToday.clock_out), 'HH:mm') : ''}` : sIn ? `出勤中 ${staffToday?.clock_in ? format(new Date(staffToday.clock_in), 'HH:mm') : ''}〜` : '未打刻'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => clockInMutation.mutate(staff.id)}
-                        disabled={clockInMutation.isPending || sIn}
-                        className="p-2 rounded-lg bg-green-900/50 hover:bg-green-700/50 disabled:opacity-30 text-green-400 transition-colors"
-                        title="出勤打刻"
-                      >
-                        <LogIn className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => clockOutMutation.mutate(staff.id)}
-                        disabled={clockOutMutation.isPending || !sIn || sOut}
-                        className="p-2 rounded-lg bg-red-900/50 hover:bg-red-700/50 disabled:opacity-30 text-red-400 transition-colors"
-                        title="退勤打刻"
-                      >
-                        <LogOut className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            <p className="text-white text-2xl font-bold mb-1">{confirm.staff.name}</p>
+            <p className="text-gray-400 mb-6">
+              {format(now, 'HH:mm')} に
+              <span className={`font-bold ml-1 ${confirm.action === 'in' ? 'text-green-400' : 'text-red-400'}`}>
+                {confirm.action === 'in' ? '出勤' : '退勤'}
+              </span>
+              打刻しますか？
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirm(null)}
+                className="flex-1 py-3 rounded-xl bg-gray-700 text-gray-300 hover:bg-gray-600 font-medium"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={isPending}
+                className={`flex-1 py-3 rounded-xl font-bold text-white disabled:opacity-50
+                  ${confirm.action === 'in' ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'}`}
+              >
+                {isPending ? '処理中...' : confirm.action === 'in' ? '出勤する' : '退勤する'}
+              </button>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ===== 月次データ ===== */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            {yearOptions.map((y) => <option key={y} value={y}>{y}年</option>)}
-          </select>
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            {monthOptions.map((m) => <option key={m} value={m}>{m}月</option>)}
-          </select>
-        </div>
-        <div className="flex bg-gray-900 rounded-lg p-1">
-          <button
-            onClick={() => setActiveView('summary')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeView === 'summary' ? 'bg-amber-600 text-white' : 'text-gray-400 hover:text-white'}`}
-          >
-            <Users className="w-4 h-4" />
-            月次サマリー
-          </button>
-          <button
-            onClick={() => setActiveView('detail')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeView === 'detail' ? 'bg-amber-600 text-white' : 'text-gray-400 hover:text-white'}`}
-          >
-            <Clock className="w-4 h-4" />
-            日次詳細
-          </button>
-        </div>
-      </div>
-
-      {/* 月次サマリー */}
-      {activeView === 'summary' && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700">
-          <div className="px-5 py-4 border-b border-gray-700">
-            <h3 className="text-white font-semibold">
-              {selectedYear}年{selectedMonth}月 月次サマリー
-            </h3>
           </div>
-          {summaryLoading ? (
-            <LoadingSpinner message="サマリーを読み込み中..." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-400 px-5 py-3 font-medium">スタッフ名</th>
-                    <th className="text-right text-gray-400 px-5 py-3 font-medium">出勤日数</th>
-                    <th className="text-right text-gray-400 px-5 py-3 font-medium">総労働時間</th>
-                    <th className="text-right text-gray-400 px-5 py-3 font-medium">深夜時間</th>
-                    <th className="text-right text-gray-400 px-5 py-3 font-medium">推定給与</th>
-                    {isManager && (
-                      <th className="text-center text-gray-400 px-5 py-3 font-medium">給与明細</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                  {summaryList?.map((summary) => (
-                    <tr key={summary.staff_id} className="hover:bg-gray-700/30 transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-amber-700 flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs font-medium">
-                              {summary.staff_name.charAt(0)}
-                            </span>
-                          </div>
-                          <span className="text-white">{summary.staff_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-right text-gray-300">{summary.work_days}日</td>
-                      <td className="px-5 py-3 text-right text-gray-300">{minutesToHM(summary.total_work_minutes)}</td>
-                      <td className="px-5 py-3 text-right text-indigo-400">{minutesToHM(summary.total_night_minutes)}</td>
-                      <td className="px-5 py-3 text-right text-amber-400 font-semibold">{formatYen(summary.total_wage)}</td>
-                      {isManager && (
-                        <td className="px-5 py-3 text-center">
-                          <button
-                            onClick={() => handleDownloadPayslip(summary.staff_id, summary.staff_name)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-xs transition-colors mx-auto"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            PDF
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                  {(!summaryList || summaryList.length === 0) && (
-                    <tr>
-                      <td colSpan={isManager ? 6 : 5} className="px-5 py-10 text-center text-gray-500">
-                        この月の勤怠データがありません
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 日次詳細 */}
-      {activeView === 'detail' && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700">
-          <div className="px-5 py-4 border-b border-gray-700">
-            <h3 className="text-white font-semibold">
-              {selectedYear}年{selectedMonth}月 勤怠詳細
-            </h3>
-          </div>
-          {attendanceLoading ? (
-            <LoadingSpinner message="勤怠データを読み込み中..." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-400 px-5 py-3 font-medium">スタッフ名</th>
-                    <th className="text-left text-gray-400 px-5 py-3 font-medium">日付</th>
-                    <th className="text-center text-gray-400 px-5 py-3 font-medium">出勤</th>
-                    <th className="text-center text-gray-400 px-5 py-3 font-medium">退勤</th>
-                    <th className="text-right text-gray-400 px-5 py-3 font-medium">労働時間</th>
-                    <th className="text-right text-gray-400 px-5 py-3 font-medium">日給</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                  {attendanceList?.map((record) => (
-                    <tr key={record.id} className="hover:bg-gray-700/30 transition-colors">
-                      <td className="px-5 py-3 text-white">
-                        {record.staff_name ?? `ID: ${record.staff_id}`}
-                      </td>
-                      <td className="px-5 py-3 text-gray-400">
-                        {format(new Date(record.date), 'M/d')}
-                      </td>
-                      <td className="px-5 py-3 text-center text-green-400">
-                        {record.clock_in ? format(new Date(record.clock_in), 'HH:mm') : <span className="text-gray-600">-</span>}
-                      </td>
-                      <td className="px-5 py-3 text-center text-red-400">
-                        {record.clock_out ? format(new Date(record.clock_out), 'HH:mm') : <span className="text-yellow-500 text-xs">勤務中</span>}
-                      </td>
-                      <td className="px-5 py-3 text-right text-gray-300">
-                        {minutesToHM(record.work_minutes)}
-                      </td>
-                      <td className="px-5 py-3 text-right text-amber-400 font-medium">
-                        {formatYen(record.wage)}
-                      </td>
-                    </tr>
-                  ))}
-                  {(!attendanceList || attendanceList.length === 0) && (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-gray-500">
-                        この月の勤怠データがありません
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       )}
     </div>

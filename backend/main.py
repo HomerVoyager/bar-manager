@@ -24,6 +24,7 @@ from app.routers import (
     dashboard,
     ws,
 )
+from app.routers import shifts
 
 # ロガーの設定
 logging.basicConfig(
@@ -162,6 +163,12 @@ app.include_router(
     dashboard.router,
     prefix="/api/v1/dashboard",
     tags=["ダッシュボード"],
+)
+
+app.include_router(
+    shifts.router,
+    prefix="/api/v1/shifts",
+    tags=["シフト管理"],
 )
 
 # WebSocketルーター（/ws プレフィックス）

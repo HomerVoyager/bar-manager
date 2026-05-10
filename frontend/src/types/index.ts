@@ -183,3 +183,14 @@ export interface ApiError {
   detail: string;
   status_code?: number;
 }
+
+// シフト
+export interface Shift {
+  id: number;
+  staff_id: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  note?: string;
+  staff?: { id: number; name: string; role: string };
+}

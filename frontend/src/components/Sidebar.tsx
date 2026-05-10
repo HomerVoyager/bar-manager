@@ -10,6 +10,8 @@ import {
   Package,
   DollarSign,
   Clock,
+  CalendarDays,
+  ClipboardList,
   Grid,
   Users,
   ChevronLeft,
@@ -28,50 +30,15 @@ interface SidebarProps {
 
 // ナビゲーションアイテムの定義
 const navItems = [
-  {
-    to: '/dashboard',
-    icon: LayoutDashboard,
-    label: 'ダッシュボード',
-    // 全ロールでアクセス可能
-    managerOnly: false,
-  },
-  {
-    to: '/sales',
-    icon: TrendingUp,
-    label: '売上管理',
-    managerOnly: false,
-  },
-  {
-    to: '/inventory',
-    icon: Package,
-    label: '在庫管理',
-    managerOnly: false,
-  },
-  {
-    to: '/cost',
-    icon: DollarSign,
-    label: '原価管理',
-    managerOnly: false,
-  },
-  {
-    to: '/attendance',
-    icon: Clock,
-    label: '勤怠管理',
-    managerOnly: false,
-  },
-  {
-    to: '/tables',
-    icon: Grid,
-    label: '卓管理',
-    managerOnly: false,
-  },
-  {
-    to: '/staff',
-    icon: Users,
-    label: 'スタッフ管理',
-    // マネージャーのみアクセス可能
-    managerOnly: true,
-  },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'ダッシュボード', managerOnly: true },
+  { to: '/sales',     icon: TrendingUp,      label: '売上管理',       managerOnly: true },
+  { to: '/inventory', icon: Package,         label: '在庫管理',       managerOnly: true },
+  { to: '/cost',      icon: DollarSign,      label: '原価管理',       managerOnly: true },
+  { to: '/attendance',      icon: Clock,          label: '打刻',           managerOnly: false },
+  { to: '/attendance/manage', icon: ClipboardList, label: '勤怠管理',      managerOnly: true },
+  { to: '/shifts',    icon: CalendarDays,    label: 'シフト管理',     managerOnly: true },
+  { to: '/tables',    icon: Grid,            label: '卓管理',         managerOnly: false },
+  { to: '/staff',     icon: Users,           label: 'スタッフ管理',   managerOnly: true },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, currentUser }) => {

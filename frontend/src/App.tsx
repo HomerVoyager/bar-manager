@@ -9,6 +9,8 @@ import Sales from './pages/Sales';
 import Inventory from './pages/Inventory';
 import Cost from './pages/Cost';
 import Attendance from './pages/Attendance';
+import AttendanceManage from './pages/AttendanceManage';
+import Shifts from './pages/Shifts';
 import Tables from './pages/Tables';
 import Staff from './pages/Staff';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -85,6 +87,16 @@ const App: React.FC = () => {
         <Route path="/inventory" element={<PageErrorBoundary><Inventory /></PageErrorBoundary>} />
         <Route path="/cost" element={<PageErrorBoundary><Cost /></PageErrorBoundary>} />
         <Route path="/attendance" element={<PageErrorBoundary><Attendance /></PageErrorBoundary>} />
+        <Route path="/attendance/manage" element={
+          <ProtectedRoute managerOnly>
+            <PageErrorBoundary><AttendanceManage /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
+        <Route path="/shifts" element={
+          <ProtectedRoute managerOnly>
+            <PageErrorBoundary><Shifts /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
         <Route path="/tables" element={<PageErrorBoundary><Tables /></PageErrorBoundary>} />
         {/* マネージャー専用 */}
         <Route

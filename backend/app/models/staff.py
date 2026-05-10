@@ -40,6 +40,7 @@ class Staff(Base):
     sessions = relationship("Session", back_populates="staff")
     stock_logs = relationship("StockLog", back_populates="staff")
     attendances = relationship("Attendance", back_populates="staff")
+    shifts = relationship("Shift", back_populates="staff")
 
     def __repr__(self):
         return f"<Staff id={self.id} name={self.name} role={self.role}>"
