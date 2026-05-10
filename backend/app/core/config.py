@@ -24,13 +24,23 @@ class Settings(BaseSettings):
     # Termux環境のバックアップディレクトリ
     BACKUP_DIR: str = "/data/data/com.termux/files/home/backups"
 
-    # CORS設定 - フロントエンドの許可オリジン（ListはJSON形式で環境変数に設定可能）
+    # CORS設定 - フロントエンドの許可オリジン
     ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",       # React開発サーバー
-        "http://localhost:19006",      # Expo開発サーバー
+        "http://localhost:3000",
+        "http://localhost:19006",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:19006",
     ]
+    # 追加オリジン（本番環境のVercel URLなどをカンマ区切りで設定）
+    # 例: ALLOWED_ORIGINS_EXTRA=https://bar-manager.vercel.app,https://custom-domain.com
+    ALLOWED_ORIGINS_EXTRA: str = ""
+
+    @property
+    def all_allowed_origins(self) -> List[str]:
+        origins = list(self.ALLOWED_ORIGINS)
+        if self.ALLOWED_ORIGINS_EXTRA:
+            origins.extend(o.strip() for o in self.ALLOWED_ORIGINS_EXTRA.split(",") if o.strip())
+        return origins
 
     model_config = {
         "env_file": ".env",

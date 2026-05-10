@@ -99,7 +99,7 @@ class TailscaleCORSMiddleware:
 # フロントエンド（React/Expo）からのアクセスを許可
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.all_allowed_origins,
     allow_origin_regex=r"https?://100\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?",  # Tailscale全IP許可
     allow_credentials=True,
     allow_methods=["*"],

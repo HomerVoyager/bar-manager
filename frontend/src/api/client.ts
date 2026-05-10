@@ -3,8 +3,10 @@
 
 import axios from 'axios';
 
-// バックエンドAPIのベースURL（Viteプロキシ経由）
-const BASE_URL = '/api/v1';
+// バックエンドAPIのベースURL
+// 本番環境ではVITE_API_BASE_URLを設定（例: https://bar-manager-api.onrender.com）
+// 開発環境ではViteプロキシ経由（/api/v1）
+const BASE_URL = `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1`;
 
 // axiosインスタンスの作成
 export const apiClient = axios.create({
