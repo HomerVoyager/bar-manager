@@ -21,6 +21,7 @@ import {
 import { fetchTables, createTable, updateTable, deleteTable } from '../api/tables';
 import { fetchProducts } from '../api/products';
 import { fetchStaff } from '../api/staff';
+import { fetchTodayAttendance } from '../api/attendance';
 import {
   openSession,
   closeSession,
@@ -40,6 +41,7 @@ import type {
   Session,
   OrderItem,
   StaffDrink,
+  Attendance,
   OpenSessionForm,
   AddOrderItemForm,
 } from '../types';
@@ -98,6 +100,19 @@ const Tables: React.FC = () => {
     queryKey: ['staff'],
     queryFn: fetchStaff,
   });
+
+  // 本日の出勤状況（開卓モーダルで出勤中スタッフのみ表示するため）
+  const { data: todayAttendance = [] } = useQuery<Attendance[]>({
+    queryKey: ['attendance-today'],
+    queryFn: fetchTodayAttendance,
+    enabled: isOpenSessionModal,
+    refetchInterval: isOpenSessionModal ? 30000 : false,
+  });
+
+  // 現在出勤中のスタッフID集合（clock_inあり・clock_outなし）
+  const onDutyIds = new Set(
+    todayAttendance.filter((a) => a.clock_in && !a.clock_out).map((a) => a.staff_id)
+  );
 
   // テーブルデータの同期
   useEffect(() => {
@@ -635,9 +650,12 @@ const Tables: React.FC = () => {
                 {...registerOpen('staff_id', { required: 'スタッフを選択してください' })}
               >
                 <option value="">選択してください</option>
-                {staffList?.filter((s) => s.is_active).map((s) => (
+                {staffList?.filter((s) => s.is_active && onDutyIds.has(s.id)).map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
+                {staffList && staffList.filter((s) => s.is_active && onDutyIds.has(s.id)).length === 0 && (
+                  <option disabled value="">（出勤中スタッフなし）</option>
+                )}
               </select>
               {openErrors.staff_id && (
                 <p className="mt-1 text-xs text-red-400">{openErrors.staff_id.message}</p>
