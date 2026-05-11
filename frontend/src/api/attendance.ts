@@ -53,6 +53,31 @@ export const fetchMonthlySummary = async (
   return response.data;
 };
 
+// スタッフ別月次詳細を取得
+export const fetchMonthlyDetail = async (
+  staffId: number,
+  year: number,
+  month: number
+): Promise<AttendanceSummary & { daily_details: DailyDetail[]; base_pay: number; night_premium: number; overtime_premium: number; drink_back_total: number; total_overtime_minutes: number; hourly_wage?: number }> => {
+  const response = await apiClient.get(`/attendance/monthly-detail/${staffId}`, {
+    params: { year, month },
+  });
+  return response.data;
+};
+
+export interface DailyDetail {
+  date: string;
+  clock_in?: string;
+  clock_out?: string;
+  work_minutes: number;
+  night_minutes: number;
+  overtime_minutes: number;
+  base_pay: number;
+  night_premium: number;
+  overtime_premium: number;
+  daily_total: number;
+}
+
 // 月次締め処理
 export const monthlyClose = async (year: number, month: number): Promise<{ message: string }> => {
   const response = await apiClient.post<{ message: string }>('/attendance/monthly-close', null, {

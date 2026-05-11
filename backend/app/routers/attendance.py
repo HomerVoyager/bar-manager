@@ -178,6 +178,20 @@ def get_today_attendance(
     return attendances
 
 
+@router.get("/monthly-detail/{staff_id}", response_model=MonthlyWageResponse, summary="スタッフ別月次詳細取得")
+def get_monthly_detail(
+    staff_id: int,
+    year: int = Query(..., description="年"),
+    month: int = Query(..., description="月"),
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager)
+):
+    staff = db.query(Staff).filter(Staff.id == staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="スタッフが見つかりません")
+    return calculate_monthly_wages(db, staff_id, year, month)
+
+
 @router.get("/monthly-summary", response_model=List[MonthlyWageResponse], summary="月次給与サマリー取得")
 def get_monthly_summary(
     year: int = Query(..., description="年"),
