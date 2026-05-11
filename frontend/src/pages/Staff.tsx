@@ -89,6 +89,7 @@ const StaffPage: React.FC = () => {
     setEditingStaff(staff);
     resetEdit({
       name: staff.name,
+      employee_number: staff.employee_number,
       role: staff.role,
       hourly_wage: staff.hourly_wage,
       drink_back_rate: staff.drink_back_rate,
@@ -123,6 +124,7 @@ const StaffPage: React.FC = () => {
     if (!editingStaff) return;
     const updateData: Partial<CreateStaffForm> = {
       name: data.name,
+      employee_number: data.employee_number || undefined,
       role: data.role,
       hourly_wage: data.hourly_wage ? Number(data.hourly_wage) : undefined,
       drink_back_rate: data.drink_back_rate !== undefined ? Number(data.drink_back_rate) : undefined,
@@ -134,7 +136,7 @@ const StaffPage: React.FC = () => {
 
   // スタッフ数の集計
   const activeCount = staffList?.filter((s) => s.is_active).length ?? 0;
-  const managerCount = staffList?.filter((s) => s.role === 'manager' && s.is_active).length ?? 0;
+  const managerCount = staffList?.filter((s) => (s.role === 'manager' || s.role === 'master') && s.is_active).length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -222,8 +224,8 @@ const StaffPage: React.FC = () => {
                     </td>
                     <td className="px-5 py-3 text-center">
                       <AlertBadge
-                        label={staff.role === 'manager' ? 'マネージャー' : 'スタッフ'}
-                        variant={staff.role === 'manager' ? 'info' : 'neutral'}
+                        label={staff.role === 'master' ? 'マスター' : staff.role === 'manager' ? 'マネージャー' : 'スタッフ'}
+                        variant={staff.role === 'master' ? 'warning' : staff.role === 'manager' ? 'info' : 'neutral'}
                       />
                     </td>
                     <td className="px-5 py-3 text-right text-amber-400 font-medium">
@@ -314,6 +316,24 @@ const StaffPage: React.FC = () => {
           }
         >
           <form className="space-y-4">
+            {/* 従業員番号 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">従業員番号（ログインID）</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="例: 1001"
+                {...registerCreate('employee_number', {
+                  required: '従業員番号を入力してください',
+                  pattern: { value: /^\d+$/, message: '数字のみ入力してください' },
+                })}
+              />
+              {createErrors.employee_number && (
+                <p className="mt-1 text-xs text-red-400">{createErrors.employee_number.message}</p>
+              )}
+            </div>
+
             {/* 名前 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">氏名</label>
@@ -338,6 +358,7 @@ const StaffPage: React.FC = () => {
                 <option value="">選択してください</option>
                 <option value="staff">スタッフ</option>
                 <option value="manager">マネージャー</option>
+                <option value="master">マスター</option>
               </select>
               {createErrors.role && (
                 <p className="mt-1 text-xs text-red-400">{createErrors.role.message}</p>
@@ -430,6 +451,23 @@ const StaffPage: React.FC = () => {
           }
         >
           <form className="space-y-4">
+            {/* 従業員番号 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">従業員番号（ログインID）</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="例: 1001"
+                {...registerEdit('employee_number', {
+                  pattern: { value: /^\d+$/, message: '数字のみ入力してください' },
+                })}
+              />
+              {editErrors.employee_number && (
+                <p className="mt-1 text-xs text-red-400">{editErrors.employee_number.message}</p>
+              )}
+            </div>
+
             {/* 名前 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">氏名</label>
@@ -452,6 +490,7 @@ const StaffPage: React.FC = () => {
               >
                 <option value="staff">スタッフ</option>
                 <option value="manager">マネージャー</option>
+                <option value="master">マスター</option>
               </select>
             </div>
 

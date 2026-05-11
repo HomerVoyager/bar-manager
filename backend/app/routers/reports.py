@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 import calendar
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_user, get_current_master
 from app.models.staff import Staff
 from app.models.session import Session as BarSession
 from app.models.order_item import OrderItem
@@ -320,7 +320,7 @@ def export_sales_csv(
     date_from: Optional[date] = Query(None, description="開始日"),
     date_to: Optional[date] = Query(None, description="終了日"),
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     """
     売上データをCSV形式でエクスポートする
@@ -398,7 +398,7 @@ def get_fl_cost(
     year: int = Query(default=None, description="年"),
     month: int = Query(default=None, description="月"),
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     """
     FL（Food + Labor）コスト分析を返す
@@ -471,7 +471,7 @@ def get_product_margins(
     date_from: Optional[date] = Query(None, description="開始日"),
     date_to: Optional[date] = Query(None, description="終了日"),
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     """
     商品別の粗利・粗利率を分析する

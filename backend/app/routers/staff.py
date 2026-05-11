@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_user, get_current_master
 from app.core.security import get_password_hash
 from app.models.staff import Staff
 from app.schemas.staff import StaffCreate, StaffUpdate, StaffResponse
@@ -33,7 +33,7 @@ def list_staff(
 def create_staff(
     staff_data: StaffCreate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     """
     新規スタッフを登録する
@@ -50,9 +50,21 @@ def create_staff(
             detail=f"スタッフ名 '{staff_data.name}' は既に登録されています"
         )
 
+    # 従業員番号の重複チェック
+    if staff_data.employee_number:
+        existing_num = db.query(Staff).filter(
+            Staff.employee_number == staff_data.employee_number
+        ).first()
+        if existing_num:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"従業員番号 '{staff_data.employee_number}' は既に使用されています"
+            )
+
     # パスワードをハッシュ化して保存
     new_staff = Staff(
         name=staff_data.name,
+        employee_number=staff_data.employee_number,
         role=staff_data.role,
         hourly_wage=staff_data.hourly_wage,
         drink_back_rate=staff_data.drink_back_rate,
@@ -88,7 +100,7 @@ def update_staff(
     staff_id: int,
     staff_data: StaffUpdate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     """
     スタッフ情報を更新する
@@ -120,7 +132,7 @@ def update_staff(
 def deactivate_staff(
     staff_id: int,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)
+    current_user: Staff = Depends(get_current_master)
 ):
     staff = db.query(Staff).filter(Staff.id == staff_id).first()
     if not staff:
@@ -137,7 +149,7 @@ def deactivate_staff(
 def activate_staff(
     staff_id: int,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)
+    current_user: Staff = Depends(get_current_master)
 ):
     staff = db.query(Staff).filter(Staff.id == staff_id).first()
     if not staff:
@@ -152,7 +164,7 @@ def activate_staff(
 def delete_staff(
     staff_id: int,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     """
     スタッフを論理削除する（is_active=False に設定）

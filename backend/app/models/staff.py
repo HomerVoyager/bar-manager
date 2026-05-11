@@ -21,7 +21,10 @@ class Staff(Base):
     # 顔認識ID（将来の顔認証機能用）
     face_id = Column(String(100), nullable=True)
 
-    # ロール: manager（マネージャー）/ staff（スタッフ）
+    # 従業員番号（ログインID、数字のみ）
+    employee_number = Column(String(20), unique=True, nullable=True, index=True)
+
+    # ロール: master（マスター）/ manager（マネージャー）/ staff（スタッフ）
     role = Column(String(20), default="staff", nullable=False)
 
     # 時給（円）

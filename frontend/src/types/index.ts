@@ -5,8 +5,9 @@
 export interface Staff {
   id: number;
   name: string;
+  employee_number?: string;
   face_id?: string;
-  role: 'manager' | 'staff';
+  role: 'master' | 'manager' | 'staff';
   hourly_wage: number;
   drink_back_rate: number;
   is_active: boolean;
@@ -183,7 +184,8 @@ export interface AddOrderItemForm {
 // スタッフ作成フォーム
 export interface CreateStaffForm {
   name: string;
-  role: 'manager' | 'staff';
+  employee_number?: string;
+  role: 'master' | 'manager' | 'staff';
   hourly_wage: number;
   drink_back_rate: number;
   password: string;

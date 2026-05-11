@@ -46,16 +46,20 @@ class PageErrorBoundary extends React.Component<
 }
 
 // 認証済みユーザーのみアクセス可能なルートラッパー
-const ProtectedRoute: React.FC<{ children: React.ReactNode; managerOnly?: boolean }> = ({
-  children,
-  managerOnly = false,
-}) => {
-  const { isAuthenticated, isManager } = useAuth();
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  masterOnly?: boolean;
+  managerOrAbove?: boolean;
+}> = ({ children, masterOnly = false, managerOrAbove = false }) => {
+  const { isAuthenticated, isMaster, isManager } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  if (managerOnly && !isManager) {
+  if (masterOnly && !isMaster) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  if (managerOrAbove && !isManager) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
@@ -83,26 +87,38 @@ const App: React.FC = () => {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<PageErrorBoundary><Dashboard /></PageErrorBoundary>} />
-        <Route path="/sales" element={<PageErrorBoundary><Sales /></PageErrorBoundary>} />
-        <Route path="/inventory" element={<PageErrorBoundary><Inventory /></PageErrorBoundary>} />
-        <Route path="/cost" element={<PageErrorBoundary><Cost /></PageErrorBoundary>} />
+        <Route path="/sales" element={
+          <ProtectedRoute masterOnly>
+            <PageErrorBoundary><Sales /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
+        <Route path="/inventory" element={
+          <ProtectedRoute managerOrAbove>
+            <PageErrorBoundary><Inventory /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
+        <Route path="/cost" element={
+          <ProtectedRoute masterOnly>
+            <PageErrorBoundary><Cost /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
         <Route path="/attendance" element={<PageErrorBoundary><Attendance /></PageErrorBoundary>} />
         <Route path="/attendance/manage" element={
-          <ProtectedRoute managerOnly>
+          <ProtectedRoute managerOrAbove>
             <PageErrorBoundary><AttendanceManage /></PageErrorBoundary>
           </ProtectedRoute>
         } />
         <Route path="/shifts" element={
-          <ProtectedRoute managerOnly>
+          <ProtectedRoute managerOrAbove>
             <PageErrorBoundary><Shifts /></PageErrorBoundary>
           </ProtectedRoute>
         } />
         <Route path="/tables" element={<PageErrorBoundary><Tables /></PageErrorBoundary>} />
-        {/* マネージャー専用 */}
+        {/* マスター専用 */}
         <Route
           path="/staff"
           element={
-            <ProtectedRoute managerOnly>
+            <ProtectedRoute masterOnly>
               <PageErrorBoundary><Staff /></PageErrorBoundary>
             </ProtectedRoute>
           }

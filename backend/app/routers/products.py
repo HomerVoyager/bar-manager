@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_user, get_current_manager_or_above
 from app.models.staff import Staff
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
@@ -83,7 +83,7 @@ def get_low_stock_products(
 def create_product(
     product_data: ProductCreate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_manager_or_above)  # マネージャー以上
 ):
     """
     新商品を登録する
@@ -136,7 +136,7 @@ def update_product(
     product_id: int,
     product_data: ProductUpdate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_manager_or_above)  # マネージャー以上
 ):
     """
     商品情報を更新する
@@ -165,7 +165,7 @@ def update_product(
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_manager_or_above)  # マネージャー以上
 ):
     """
     商品を論理削除する（is_active=False に設定）

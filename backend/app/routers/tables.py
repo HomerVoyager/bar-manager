@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_user, get_current_manager_or_above
 from app.models.staff import Staff
 from app.models.table import Table
 from app.models.session import Session as BarSession
@@ -86,7 +86,7 @@ def list_tables(
 def create_table(
     table_data: TableCreate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_manager_or_above)  # マネージャー以上
 ):
     """
     新テーブルを登録する
@@ -145,7 +145,7 @@ def update_table(
     table_id: int,
     table_data: TableUpdate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_manager_or_above)  # マネージャー以上
 ):
     """
     テーブル情報を更新する
@@ -203,7 +203,7 @@ def update_table_status(
 def delete_table(
     table_id: int,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_manager_or_above)  # マネージャー以上
 ):
     """
     テーブルを削除する

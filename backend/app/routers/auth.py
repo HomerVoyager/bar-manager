@@ -23,9 +23,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     - パスワードをbcryptで照合
     - 成功時はJWTアクセストークンを返す
     """
-    # スタッフ名でユーザーを検索（退職済みは除外）
+    # 従業員番号でユーザーを検索（退職済みは除外）
     staff = db.query(Staff).filter(
-        Staff.name == request.username,
+        Staff.employee_number == request.username,
         Staff.is_active == True  # noqa: E712
     ).first()
 
@@ -33,7 +33,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not staff or not staff.password_hash:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="スタッフ名またはパスワードが間違っています",
+            detail="従業員番号またはパスワードが間違っています",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -41,7 +41,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not verify_password(request.password, staff.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="スタッフ名またはパスワードが間違っています",
+            detail="従業員番号またはパスワードが間違っています",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

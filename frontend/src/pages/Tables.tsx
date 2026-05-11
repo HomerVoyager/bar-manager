@@ -843,7 +843,7 @@ const Tables: React.FC = () => {
                   <option value="">スタッフを選択</option>
                   {staffList?.filter((s) => s.is_active).map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.drink_back_rate}%)
+                      {s.name}
                     </option>
                   ))}
                 </select>

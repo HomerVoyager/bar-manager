@@ -4,7 +4,7 @@ from typing import List
 from datetime import date
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_user, get_current_manager_or_above
 from app.models.staff import Staff
 from app.models.shift import Shift
 from app.schemas.shift import ShiftCreate, ShiftUpdate, ShiftResponse
@@ -33,7 +33,7 @@ def list_shifts(
 def create_shift(
     body: ShiftCreate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager),
+    current_user: Staff = Depends(get_current_manager_or_above),
 ):
     existing = db.query(Shift).filter(
         Shift.staff_id == body.staff_id,
@@ -53,7 +53,7 @@ def update_shift(
     shift_id: int,
     body: ShiftUpdate,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager),
+    current_user: Staff = Depends(get_current_manager_or_above),
 ):
     shift = db.query(Shift).filter(Shift.id == shift_id).first()
     if not shift:
@@ -69,7 +69,7 @@ def update_shift(
 def delete_shift(
     shift_id: int,
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager),
+    current_user: Staff = Depends(get_current_manager_or_above),
 ):
     shift = db.query(Shift).filter(Shift.id == shift_id).first()
     if not shift:

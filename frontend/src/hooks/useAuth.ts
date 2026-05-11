@@ -14,6 +14,7 @@ const USER_KEY = 'auth_user';
 interface UseAuthReturn {
   user: Staff | null;
   isAuthenticated: boolean;
+  isMaster: boolean;
   isManager: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
@@ -88,7 +89,8 @@ export const useAuth = (): UseAuthReturn => {
   return {
     user,
     isAuthenticated: !!user && !!localStorage.getItem(TOKEN_KEY),
-    isManager: user?.role === 'manager',
+    isMaster: user?.role === 'master',
+    isManager: user?.role === 'master' || user?.role === 'manager',
     login,
     logout,
     isLoading,

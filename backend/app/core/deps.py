@@ -59,23 +59,35 @@ def get_current_user(
     return staff
 
 
+def get_current_master(
+    current_user: Staff = Depends(get_current_user)
+) -> Staff:
+    """マスター権限のみ許可"""
+    if current_user.role != "master":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="この操作にはマスター権限が必要です",
+        )
+    return current_user
+
+
+def get_current_manager_or_above(
+    current_user: Staff = Depends(get_current_user)
+) -> Staff:
+    """マネージャー以上（master / manager）を許可"""
+    if current_user.role not in ("master", "manager"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="この操作にはマネージャー権限が必要です",
+        )
+    return current_user
+
+
 def get_current_manager(
     current_user: Staff = Depends(get_current_user)
 ) -> Staff:
-    """
-    マネージャー権限を持つユーザーのみを許可する依存性関数
-    スタッフ管理や給与計算など、管理者専用機能に使用
-
-    Args:
-        current_user: 現在の認証済みユーザー
-
-    Returns:
-        マネージャー権限を持つStaffモデルインスタンス
-
-    Raises:
-        HTTPException 403: マネージャー権限がない場合
-    """
-    if current_user.role != "manager":
+    """後方互換: manager のみ許可（既存コードが参照するため残す）"""
+    if current_user.role not in ("master", "manager"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="この操作にはマネージャー権限が必要です",

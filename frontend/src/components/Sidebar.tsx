@@ -28,21 +28,23 @@ interface SidebarProps {
   currentUser: Staff | null;
 }
 
-// ナビゲーションアイテムの定義
+// ナビゲーションアイテム（minRole: 'staff'=全員, 'manager'=manager以上, 'master'=masterのみ）
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'ダッシュボード', managerOnly: true },
-  { to: '/sales',     icon: TrendingUp,      label: '売上管理',       managerOnly: true },
-  { to: '/inventory', icon: Package,         label: '在庫管理',       managerOnly: true },
-  { to: '/cost',      icon: DollarSign,      label: '原価管理',       managerOnly: true },
-  { to: '/attendance',      icon: Clock,          label: '打刻',           managerOnly: false },
-  { to: '/attendance/manage', icon: ClipboardList, label: '勤怠管理',      managerOnly: true },
-  { to: '/shifts',    icon: CalendarDays,    label: 'シフト管理',     managerOnly: true },
-  { to: '/tables',    icon: Grid,            label: '卓管理',         managerOnly: false },
-  { to: '/staff',     icon: Users,           label: 'スタッフ管理',   managerOnly: true },
-];
+  { to: '/dashboard',         icon: LayoutDashboard, label: 'ダッシュボード', minRole: 'staff'   },
+  { to: '/sales',             icon: TrendingUp,      label: '売上管理',       minRole: 'master'  },
+  { to: '/inventory',         icon: Package,         label: '在庫管理',       minRole: 'manager' },
+  { to: '/cost',              icon: DollarSign,      label: '原価管理',       minRole: 'master'  },
+  { to: '/attendance',        icon: Clock,           label: '打刻',           minRole: 'staff'   },
+  { to: '/attendance/manage', icon: ClipboardList,   label: '勤怠管理',       minRole: 'manager' },
+  { to: '/shifts',            icon: CalendarDays,    label: 'シフト管理',     minRole: 'manager' },
+  { to: '/tables',            icon: Grid,            label: '卓管理',         minRole: 'staff'   },
+  { to: '/staff',             icon: Users,           label: 'スタッフ管理',   minRole: 'master'  },
+] as const;
+
+const ROLE_LEVEL: Record<string, number> = { master: 3, manager: 2, staff: 1 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, currentUser }) => {
-  const isManager = currentUser?.role === 'manager';
+  const userLevel = ROLE_LEVEL[currentUser?.role ?? 'staff'] ?? 1;
 
   return (
     <aside
@@ -72,8 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, currentUser })
       <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
-            // マネージャー専用ページは非マネージャーには表示しない
-            if (item.managerOnly && !isManager) return null;
+            if (userLevel < (ROLE_LEVEL[item.minRole] ?? 1)) return null;
 
             const Icon = item.icon;
 
@@ -119,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, currentUser })
             <div className="overflow-hidden">
               <p className="text-white text-xs font-medium truncate">{currentUser.name}</p>
               <p className="text-gray-500 text-xs">
-                {currentUser.role === 'manager' ? 'マネージャー' : 'スタッフ'}
+                {currentUser.role === 'master' ? 'マスター' : currentUser.role === 'manager' ? 'マネージャー' : 'スタッフ'}
               </p>
             </div>
           </div>

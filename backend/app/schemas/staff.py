@@ -9,7 +9,8 @@ from datetime import datetime
 class StaffBase(BaseModel):
     """スタッフ基底スキーマ（共通フィールド）"""
     name: str = Field(..., max_length=50, description="スタッフ名")
-    role: str = Field(default="staff", description="ロール (manager/staff)")
+    employee_number: Optional[str] = Field(None, max_length=20, description="従業員番号（数字のみ）")
+    role: str = Field(default="staff", description="ロール (master/manager/staff)")
     hourly_wage: int = Field(default=1000, ge=0, description="時給（円）")
     drink_back_rate: float = Field(default=0.0, ge=0.0, le=100.0, description="ドリンクバック率（%）")
     face_id: Optional[str] = Field(None, description="顔認識ID")
@@ -35,6 +36,7 @@ class StaffCreate(StaffBase):
 class StaffUpdate(BaseModel):
     """スタッフ更新スキーマ（全フィールドオプション）"""
     name: Optional[str] = Field(None, max_length=50)
+    employee_number: Optional[str] = Field(None, max_length=20)
     role: Optional[str] = None
     hourly_wage: Optional[int] = Field(None, ge=0)
     drink_back_rate: Optional[float] = Field(None, ge=0.0, le=100.0)

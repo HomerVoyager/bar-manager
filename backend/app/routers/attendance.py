@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime, date
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_manager
+from app.core.deps import get_current_user, get_current_manager_or_above, get_current_master
 from app.models.staff import Staff
 from app.models.attendance import Attendance
 from app.schemas.attendance import (
@@ -184,7 +184,7 @@ def get_monthly_detail(
     year: int = Query(..., description="年"),
     month: int = Query(..., description="月"),
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)
+    current_user: Staff = Depends(get_current_manager_or_above)
 ):
     staff = db.query(Staff).filter(Staff.id == staff_id).first()
     if not staff:
@@ -197,7 +197,7 @@ def get_monthly_summary(
     year: int = Query(..., description="年"),
     month: int = Query(..., description="月"),
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)
+    current_user: Staff = Depends(get_current_manager_or_above)
 ):
     all_staff = db.query(Staff).filter(Staff.is_active == True).all()  # noqa: E712
     return [calculate_monthly_wages(db, s.id, year, month) for s in all_staff]
@@ -208,7 +208,7 @@ def monthly_close(
     year: int = Query(..., description="年"),
     month: int = Query(..., description="月"),
     db: Session = Depends(get_db),
-    current_user: Staff = Depends(get_current_manager)  # マネージャーのみ
+    current_user: Staff = Depends(get_current_master)  # マスターのみ
 ):
     all_staff = db.query(Staff).filter(Staff.is_active == True).all()  # noqa: E712
     return [calculate_monthly_wages(db, s.id, year, month) for s in all_staff]
@@ -227,7 +227,7 @@ def get_payslip(
     本人またはマネージャーのみアクセス可能
     """
     # 本人またはマネージャーのみアクセス可能
-    if current_user.id != staff_id and current_user.role != "manager":
+    if current_user.id != staff_id and current_user.role not in ("master", "manager"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="他のスタッフの給与明細は参照できません"
@@ -275,7 +275,7 @@ def generate_payslip(
     本人またはマネージャーのみアクセス可能
     """
     # 本人またはマネージャーのみアクセス可能
-    if current_user.id != staff_id and current_user.role != "manager":
+    if current_user.id != staff_id and current_user.role not in ("master", "manager"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="他のスタッフの給与明細は参照できません"

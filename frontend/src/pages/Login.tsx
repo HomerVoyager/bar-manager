@@ -64,17 +64,18 @@ const Login: React.FC = () => {
 
           {/* ログインフォーム */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {/* ユーザー名フィールド */}
+            {/* 従業員番号フィールド */}
             <div>
               <label
                 htmlFor="username"
                 className="block text-sm font-medium text-gray-300 mb-1.5"
               >
-                ユーザー名
+                従業員番号
               </label>
               <input
                 id="username"
                 type="text"
+                inputMode="numeric"
                 autoComplete="username"
                 className={`
                   w-full px-4 py-2.5 rounded-lg
@@ -87,9 +88,10 @@ const Login: React.FC = () => {
                     : 'border-gray-600 hover:border-gray-500'
                   }
                 `}
-                placeholder="例: admin"
+                placeholder="例: 1001"
                 {...register('username', {
-                  required: 'ユーザー名を入力してください',
+                  required: '従業員番号を入力してください',
+                  pattern: { value: /^\d+$/, message: '数字のみ入力してください' },
                 })}
               />
               {errors.username && (
