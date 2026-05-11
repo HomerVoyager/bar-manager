@@ -46,7 +46,8 @@ def list_tables(
                 product_ids = [i.product_id for i in order_items]
                 prods = db.query(Product).filter(Product.id.in_(product_ids)).all()
                 product_names = {p.id: p.name for p in prods}
-            live_total = sum(oi.qty * oi.unit_price for oi in order_items) + (active_session.set_fee or 0)
+            nomi_hodai_total = (active_session.nomi_hodai_price or 0) * active_session.guest_count if active_session.plan_type == "nomi_hodai" else 0
+            live_total = sum(oi.qty * oi.unit_price for oi in order_items) + (active_session.set_fee or 0) + nomi_hodai_total
             session_data = {
                 "id": active_session.id,
                 "guest_count": active_session.guest_count,
@@ -56,6 +57,7 @@ def list_tables(
                 "plan_type": active_session.plan_type,
                 "time_limit_minutes": active_session.time_limit_minutes,
                 "set_fee": active_session.set_fee or 0,
+                "nomi_hodai_price": active_session.nomi_hodai_price or 0,
                 "items": [
                     {
                         "id": oi.id,

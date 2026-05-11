@@ -47,6 +47,9 @@ class Session(Base):
     # セット料金（開卓時に徴収する固定料金）
     set_fee = Column(Integer, default=0, nullable=False)
 
+    # 飲み放題コース料金（1人あたり。会計時に guest_count 分加算）
+    nomi_hodai_price = Column(Integer, default=0, nullable=False)
+
     # リレーションシップ
     table = relationship("Table", back_populates="sessions")
     staff = relationship("Staff", back_populates="sessions")

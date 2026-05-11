@@ -138,7 +138,7 @@ const Tables: React.FC = () => {
     reset: resetOpen,
     watch: watchOpen,
     formState: { errors: openErrors },
-  } = useForm<Omit<OpenSessionForm, 'table_id' | 'set_fee'>>({ defaultValues: { plan_type: 'tanpin' } });
+  } = useForm<Omit<OpenSessionForm, 'table_id' | 'set_fee'>>({ defaultValues: { plan_type: 'tanpin', nomi_hodai_price: 1500 } });
 
   const selectedPlan = watchOpen('plan_type');
 
@@ -370,6 +370,7 @@ const Tables: React.FC = () => {
       plan_type: data.plan_type,
       time_limit_minutes: data.plan_type === 'nomi_hodai' ? Number(data.time_limit_minutes) : undefined,
       set_fee: setFeeEnabled ? 1000 : 0,
+      nomi_hodai_price: data.plan_type === 'nomi_hodai' ? Number(data.nomi_hodai_price) : 0,
     });
   };
 
@@ -714,6 +715,27 @@ const Tables: React.FC = () => {
                 )}
               </div>
             )}
+            {selectedPlan === 'nomi_hodai' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">コース料金（1人あたり）</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">¥</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    className="w-full pl-7 pr-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    {...registerOpen('nomi_hodai_price', {
+                      required: '料金を入力してください',
+                      min: { value: 0, message: '0以上を入力してください' },
+                    })}
+                  />
+                </div>
+                {openErrors.nomi_hodai_price && (
+                  <p className="mt-1 text-xs text-red-400">{openErrors.nomi_hodai_price.message}</p>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
               <label className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setSetFeeEnabled((v) => !v)}>
                 <div className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${setFeeEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}>
@@ -811,10 +833,20 @@ const Tables: React.FC = () => {
                 </p>
               </div>
             </div>
-            {selectedTable.current_session.set_fee > 0 && (
-              <div className="flex items-center justify-between bg-amber-900/20 border border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-300">
-                <span>セット料金</span>
-                <span className="font-semibold">{formatYen(selectedTable.current_session.set_fee)}</span>
+            {(selectedTable.current_session.set_fee > 0 || selectedTable.current_session.nomi_hodai_price > 0) && (
+              <div className="space-y-1.5">
+                {selectedTable.current_session.set_fee > 0 && (
+                  <div className="flex items-center justify-between bg-amber-900/20 border border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-300">
+                    <span>セット料金</span>
+                    <span className="font-semibold">{formatYen(selectedTable.current_session.set_fee)}</span>
+                  </div>
+                )}
+                {selectedTable.current_session.nomi_hodai_price > 0 && (
+                  <div className="flex items-center justify-between bg-indigo-900/20 border border-indigo-800 rounded-lg px-3 py-2 text-xs text-indigo-300">
+                    <span>飲み放題コース ({formatYen(selectedTable.current_session.nomi_hodai_price)}/人 × {selectedTable.current_session.guest_count}名)</span>
+                    <span className="font-semibold">{formatYen(selectedTable.current_session.nomi_hodai_price * selectedTable.current_session.guest_count)}</span>
+                  </div>
+                )}
               </div>
             )}
 

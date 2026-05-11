@@ -50,6 +50,7 @@ export interface Session {
   plan_type: 'tanpin' | 'nomi_hodai';
   time_limit_minutes?: number;
   set_fee: number;
+  nomi_hodai_price: number;
   items?: OrderItem[];
 }
 
@@ -177,6 +178,7 @@ export interface OpenSessionForm {
   plan_type: 'tanpin' | 'nomi_hodai';
   time_limit_minutes?: number;
   set_fee: number;
+  nomi_hodai_price: number;
 }
 
 // 注文追加フォーム

@@ -68,6 +68,7 @@ async def open_session(
         plan_type=session_data.plan_type,
         time_limit_minutes=session_data.time_limit_minutes,
         set_fee=session_data.set_fee,
+        nomi_hodai_price=session_data.nomi_hodai_price if session_data.plan_type == "nomi_hodai" else 0,
     )
     db.add(new_session)
 
@@ -324,8 +325,9 @@ async def close_session(
             detail="このセッションは既に精算済みです"
         )
 
-    # 合計金額を計算（セット料金含む）
-    total = sum(item.qty * item.unit_price for item in session.order_items) + (session.set_fee or 0)
+    # 合計金額を計算（セット料金＋飲み放題コース料金含む）
+    nomi_hodai_total = (session.nomi_hodai_price or 0) * session.guest_count if session.plan_type == "nomi_hodai" else 0
+    total = sum(item.qty * item.unit_price for item in session.order_items) + (session.set_fee or 0) + nomi_hodai_total
 
     # セッションを精算済みに更新
     session.total = total

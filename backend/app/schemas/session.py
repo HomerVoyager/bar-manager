@@ -18,6 +18,7 @@ class SessionBase(BaseModel):
     plan_type: str = Field(default="tanpin", description="料金プラン: tanpin/nomi_hodai")
     time_limit_minutes: Optional[int] = Field(None, description="飲み放題の制限時間（分）")
     set_fee: int = Field(default=0, ge=0, description="セット料金（円）")
+    nomi_hodai_price: int = Field(default=0, ge=0, description="飲み放題コース料金（1人あたり円）")
 
 
 class SessionCreate(SessionBase):
@@ -61,6 +62,7 @@ class SessionBrief(BaseModel):
     plan_type: str = "tanpin"
     time_limit_minutes: Optional[int] = None
     set_fee: int = 0
+    nomi_hodai_price: int = 0
 
     model_config = {"from_attributes": True}
 
