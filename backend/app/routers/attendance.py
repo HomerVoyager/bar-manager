@@ -226,6 +226,16 @@ def break_end(
     return db.query(Attendance).options(joinedload(Attendance.staff)).filter(Attendance.id == att.id).first()
 
 
+def _parse_time(time_str: str, base_date: date, next_day_if_before_noon: bool = False) -> datetime:
+    """HH:MM または ISO形式の文字列をdatetimeに変換。バー深夜営業対応"""
+    if len(time_str) <= 5:
+        h, m = map(int, time_str.split(":"))
+        from datetime import timedelta
+        d = base_date + timedelta(days=1) if (next_day_if_before_noon and h < 12) else base_date
+        return datetime.combine(d, datetime.min.time().replace(hour=h, minute=m))
+    return datetime.fromisoformat(time_str)
+
+
 @router.put("/{attendance_id}", response_model=AttendanceResponse, summary="打刻修正")
 def update_attendance(
     attendance_id: int,
@@ -238,9 +248,9 @@ def update_attendance(
         raise HTTPException(status_code=404, detail="勤怠記録が見つかりません")
 
     if body.clock_in is not None:
-        att.clock_in = datetime.fromisoformat(body.clock_in)
+        att.clock_in = _parse_time(body.clock_in, att.date, next_day_if_before_noon=False)
     if body.clock_out is not None:
-        att.clock_out = datetime.fromisoformat(body.clock_out)
+        att.clock_out = _parse_time(body.clock_out, att.date, next_day_if_before_noon=True)
     if body.break_minutes is not None:
         att.break_minutes = body.break_minutes
 
