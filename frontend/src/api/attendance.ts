@@ -91,6 +91,9 @@ export interface DailyDetail {
   overtime_premium: number;
   drink_back: number;
   daily_total: number;
+  is_late?: boolean;
+  is_early_leave?: boolean;
+  absence_type?: string | null;
 }
 
 // 月次締め処理
@@ -122,4 +125,25 @@ export const updateAttendance = async (
 ): Promise<Attendance> => {
   const response = await apiClient.put<Attendance>(`/attendance/${id}`, data);
   return response.data;
+};
+
+// 欠勤・有給・特休を登録
+export const registerAbsence = async (
+  staffId: number,
+  date: string,
+  absenceType: string,
+  note?: string
+): Promise<Attendance> => {
+  const response = await apiClient.post<Attendance>('/attendance/absence', {
+    staff_id: staffId,
+    date,
+    absence_type: absenceType,
+    note,
+  });
+  return response.data;
+};
+
+// 欠勤・有給登録を削除
+export const deleteAbsence = async (attendanceId: number): Promise<void> => {
+  await apiClient.delete(`/attendance/absence/${attendanceId}`);
 };

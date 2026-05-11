@@ -1,7 +1,7 @@
 # 勤怠モデル
 # スタッフの出退勤記録と給与計算データを管理
 
-from sqlalchemy import Column, Integer, DateTime, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -26,6 +26,10 @@ class Attendance(Base):
     work_minutes = Column(Integer, nullable=True)
     night_minutes = Column(Integer, default=0, nullable=True)
     wage = Column(Integer, nullable=True)
+
+    # 欠勤・有給管理: null=通常出勤, 'absent'=欠勤, 'paid_leave'=有給, 'special_leave'=特休
+    absence_type = Column(String(20), nullable=True)
+    absence_note = Column(String(200), nullable=True)
 
     staff = relationship("Staff", back_populates="attendances")
 

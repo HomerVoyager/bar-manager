@@ -14,6 +14,8 @@ import {
   ClipboardList,
   Grid,
   Users,
+  BarChart2,
+  BookUser,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -32,12 +34,14 @@ interface SidebarProps {
 const navItems = [
   { to: '/dashboard',         icon: LayoutDashboard, label: 'ダッシュボード', minRole: 'staff'   },
   { to: '/sales',             icon: TrendingUp,      label: '売上管理',       minRole: 'master'  },
+  { to: '/daily-report',      icon: BarChart2,       label: '日次レポート',   minRole: 'manager' },
   { to: '/inventory',         icon: Package,         label: '在庫管理',       minRole: 'manager' },
   { to: '/cost',              icon: DollarSign,      label: '原価管理',       minRole: 'master'  },
   { to: '/attendance',        icon: Clock,           label: '打刻',           minRole: 'staff'   },
   { to: '/attendance/manage', icon: ClipboardList,   label: '勤怠管理',       minRole: 'manager' },
   { to: '/shifts',            icon: CalendarDays,    label: 'シフト管理',     minRole: 'manager' },
   { to: '/tables',            icon: Grid,            label: '卓管理',         minRole: 'staff'   },
+  { to: '/customers',         icon: BookUser,        label: '顧客管理',       minRole: 'manager' },
   { to: '/staff',             icon: Users,           label: 'スタッフ管理',   minRole: 'master'  },
 ] as const;
 

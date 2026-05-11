@@ -1,12 +1,14 @@
 // マネージャー用勤怠管理ページ
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { format, getYear, getMonth, getDaysInMonth } from 'date-fns';
-import { Lock, Download, User, FileSpreadsheet, Edit2, X } from 'lucide-react';
+import { Lock, Download, User, FileSpreadsheet, Edit2, X, Receipt } from 'lucide-react';
 import XS from 'xlsx-js-style';
 import {
   fetchAttendance, fetchTodayAttendance, fetchMonthlySummary,
   fetchMonthlyDetail, monthlyClose, downloadPayslipPdf, updateAttendance,
+  registerAbsence, deleteAbsence,
   type DailyDetail,
 } from '../api/attendance';
 import { fetchStaff } from '../api/staff';
@@ -28,12 +30,35 @@ interface EditForm {
   breakMinutes: string;
 }
 
+interface AbsenceModal {
+  dateStr: string;
+  staffId: number;
+  existingAttendanceId?: number;
+}
+
+const ABSENCE_TYPES = [
+  { value: 'absent', label: '欠勤', color: 'bg-red-900/40 text-red-300 border-red-700' },
+  { value: 'paid_leave', label: '有給', color: 'bg-green-900/40 text-green-300 border-green-700' },
+  { value: 'special_leave', label: '特休', color: 'bg-purple-900/40 text-purple-300 border-purple-700' },
+];
+
+const absenceBadge = (type: string | null | undefined) => {
+  if (!type) return null;
+  const t = ABSENCE_TYPES.find((a) => a.value === type);
+  if (!t) return null;
+  return <span className={`inline-block text-xs px-1.5 py-0.5 rounded border ${t.color}`}>{t.label}</span>;
+};
+
 const AttendanceManagePage: React.FC = () => {
+  const navigate = useNavigate();
   const [year, setYear] = useState(getYear(new Date()));
   const [month, setMonth] = useState(getMonth(new Date()) + 1);
   const [tab, setTab] = useState<'today' | 'summary' | 'detail' | 'person'>('today');
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [absenceModal, setAbsenceModal] = useState<AbsenceModal | null>(null);
+  const [absenceType, setAbsenceType] = useState('absent');
+  const [absenceNote, setAbsenceNote] = useState('');
   const queryClient = useQueryClient();
 
   const { data: staffList = [] } = useQuery<Staff[]>({
@@ -82,6 +107,25 @@ const AttendanceManagePage: React.FC = () => {
       setEditForm(null);
     },
     onError: (e: any) => alert(e?.response?.data?.detail ?? '更新に失敗しました'),
+  });
+
+  const absenceMutation = useMutation({
+    mutationFn: () => registerAbsence(absenceModal!.staffId, absenceModal!.dateStr, absenceType, absenceNote || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-person', selectedStaffId, year, month] });
+      setAbsenceModal(null);
+      setAbsenceNote('');
+    },
+    onError: (e: any) => alert(e?.response?.data?.detail ?? '登録に失敗しました'),
+  });
+
+  const deleteAbsenceMutation = useMutation({
+    mutationFn: (id: number) => deleteAbsence(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-person', selectedStaffId, year, month] });
+      setAbsenceModal(null);
+    },
+    onError: (e: any) => alert(e?.response?.data?.detail ?? '削除に失敗しました'),
   });
 
   const handleEditSave = () => {
@@ -375,6 +419,7 @@ const AttendanceManagePage: React.FC = () => {
                 <th className="px-4 py-3 text-right">深夜時間</th>
                 <th className="px-4 py-3 text-right">ドリンクバック</th>
                 <th className="px-4 py-3 text-right">支給額</th>
+                <th className="px-4 py-3 text-center">明細</th>
                 <th className="px-4 py-3 text-center">PDF</th>
               </tr>
             </thead>
@@ -391,6 +436,12 @@ const AttendanceManagePage: React.FC = () => {
                   <td className="px-4 py-3 text-right">{minutesToHM(s.total_night_minutes)}</td>
                   <td className="px-4 py-3 text-right text-indigo-400">{yen(s.drink_back_total)}</td>
                   <td className="px-4 py-3 text-right text-amber-400 font-semibold">{yen(s.total_wage)}</td>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => navigate(`/payslip/${s.staff_id}/${year}/${month}`)}
+                      className="p-1.5 hover:bg-gray-600 rounded text-gray-400 hover:text-amber-400">
+                      <Receipt className="w-4 h-4" />
+                    </button>
+                  </td>
                   <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => handleDownload(s.staff_id, s.staff_name)}
                       className="p-1.5 hover:bg-gray-600 rounded text-gray-400 hover:text-white">
@@ -483,39 +534,81 @@ const AttendanceManagePage: React.FC = () => {
                     {dayRows.map(({ day, dateStr, dow, detail }) => {
                       const isSun = dow === 0;
                       const isSat = dow === 6;
+                      const isAbsence = !!detail?.absence_type;
+                      const hasWork = !!detail && !isAbsence;
                       const rowBg = isSun ? 'bg-red-900/10' : isSat ? 'bg-blue-900/10' : '';
                       const dowLabel = DAY_LABELS[dow === 0 ? 6 : dow - 1];
                       const dowColor = isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-400';
 
+                      const openAbsence = () => {
+                        if (!selectedStaffId) return;
+                        setAbsenceType(detail?.absence_type ?? 'absent');
+                        setAbsenceNote('');
+                        setAbsenceModal({
+                          dateStr,
+                          staffId: selectedStaffId,
+                          existingAttendanceId: detail?.attendance_id,
+                        });
+                      };
+
                       return (
-                        <tr key={dateStr} className={`${rowBg} hover:bg-white/5`}>
+                        <tr
+                          key={dateStr}
+                          className={`${rowBg} hover:bg-white/5 ${!detail ? 'cursor-pointer' : ''}`}
+                          onClick={!detail ? openAbsence : undefined}
+                        >
                           <td className="px-3 py-1.5 text-center text-gray-300">{day}</td>
                           <td className={`px-3 py-1.5 text-center text-xs font-medium ${dowColor}`}>{dowLabel}</td>
-                          <td className="px-3 py-1.5 text-center text-gray-300">{detail?.clock_in ?? '-'}</td>
-                          <td className="px-3 py-1.5 text-center text-gray-300">{detail?.clock_out ?? '-'}</td>
+                          <td className="px-3 py-1.5 text-center text-gray-300">
+                            <div className="flex items-center justify-center gap-1">
+                              {isAbsence
+                                ? absenceBadge(detail.absence_type)
+                                : detail?.clock_in ?? <span className="text-gray-600 text-xs">+</span>
+                              }
+                              {detail?.is_late && (
+                                <span className="text-xs px-1 py-0.5 rounded bg-orange-900/50 text-orange-300 border border-orange-700">遅</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-1.5 text-center text-gray-300">
+                            <div className="flex items-center justify-center gap-1">
+                              {!isAbsence && (detail?.clock_out ?? '-')}
+                              {detail?.is_early_leave && (
+                                <span className="text-xs px-1 py-0.5 rounded bg-yellow-900/50 text-yellow-300 border border-yellow-700">早</span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-3 py-1.5 text-right text-amber-300 text-xs">
-                            {detail && detail.break_minutes > 0 ? `${detail.break_minutes}分` : '-'}
+                            {hasWork && detail.break_minutes > 0 ? `${detail.break_minutes}分` : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-right text-white font-medium">
-                            {detail ? minutesToHM(detail.work_minutes) : '-'}
+                            {hasWork ? minutesToHM(detail.work_minutes) : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-right text-indigo-400">
-                            {detail && detail.night_minutes > 0 ? minutesToHM(detail.night_minutes) : '-'}
+                            {hasWork && detail.night_minutes > 0 ? minutesToHM(detail.night_minutes) : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-right text-yellow-400">
-                            {detail && detail.overtime_minutes > 0 ? minutesToHM(detail.overtime_minutes) : '-'}
+                            {hasWork && detail.overtime_minutes > 0 ? minutesToHM(detail.overtime_minutes) : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-right text-purple-400 text-xs">
-                            {detail && detail.drink_back > 0 ? yen(detail.drink_back) : '-'}
+                            {hasWork && detail.drink_back > 0 ? yen(detail.drink_back) : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-right text-amber-400">
-                            {detail ? yen(detail.daily_total) : '-'}
+                            {hasWork ? yen(detail.daily_total) : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-center">
-                            {detail && (
+                            {detail && !isAbsence && (
                               <button
-                                onClick={() => openEdit(detail, `${month}/${day}`)}
+                                onClick={(e) => { e.stopPropagation(); openEdit(detail, `${month}/${day}`); }}
                                 className="p-1 rounded hover:bg-gray-600 text-gray-500 hover:text-white transition-colors"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                            {isAbsence && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openAbsence(); }}
+                                className="p-1 rounded hover:bg-gray-600 text-gray-500 hover:text-red-400 transition-colors"
                               >
                                 <Edit2 className="w-3 h-3" />
                               </button>
@@ -562,6 +655,73 @@ const AttendanceManagePage: React.FC = () => {
           )}
         </div>
       )}
+      {/* 欠勤・有給登録モーダル */}
+      {absenceModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-bold">
+                {absenceModal.dateStr.replace(`${year}-${String(month).padStart(2,'0')}-`, `${month}/`)} の休暇登録
+              </h3>
+              <button onClick={() => setAbsenceModal(null)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-2">種別</label>
+                <div className="flex gap-2">
+                  {ABSENCE_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setAbsenceType(t.value)}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors
+                        ${absenceType === t.value ? t.color : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600'}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">メモ（任意）</label>
+                <input
+                  type="text"
+                  value={absenceNote}
+                  onChange={(e) => setAbsenceNote(e.target.value)}
+                  placeholder="理由など"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              {absenceModal.existingAttendanceId && (
+                <button
+                  onClick={() => { if (window.confirm('この登録を削除しますか？')) deleteAbsenceMutation.mutate(absenceModal.existingAttendanceId!); }}
+                  disabled={deleteAbsenceMutation.isPending}
+                  className="px-3 py-2 rounded-lg bg-red-900/50 text-red-300 border border-red-700 hover:bg-red-800 text-sm"
+                >
+                  削除
+                </button>
+              )}
+              <button
+                onClick={() => setAbsenceModal(null)}
+                className="flex-1 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => absenceMutation.mutate()}
+                disabled={absenceMutation.isPending}
+                className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-sm"
+              >
+                {absenceMutation.isPending ? '登録中...' : '登録'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 打刻修正モーダル */}
       {editForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">

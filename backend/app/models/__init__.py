@@ -8,6 +8,7 @@ from app.models.session import Session
 from app.models.order_item import OrderItem
 from app.models.stock_log import StockLog
 from app.models.attendance import Attendance
+from app.models.customer import Customer
 
 __all__ = [
     "Staff",
@@ -17,4 +18,5 @@ __all__ = [
     "OrderItem",
     "StockLog",
     "Attendance",
+    "Customer",
 ]

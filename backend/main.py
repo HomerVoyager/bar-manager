@@ -26,6 +26,7 @@ from app.routers import (
 )
 from app.routers import shifts
 from app.routers import staff_drinks
+from app.routers import customers
 
 # ロガーの設定
 logging.basicConfig(
@@ -176,6 +177,12 @@ app.include_router(
     staff_drinks.router,
     prefix="/api/v1/staff_drinks",
     tags=["スタッフドリンク"],
+)
+
+app.include_router(
+    customers.router,
+    prefix="/api/v1/customers",
+    tags=["顧客管理"],
 )
 
 # WebSocketルーター（/ws プレフィックス）

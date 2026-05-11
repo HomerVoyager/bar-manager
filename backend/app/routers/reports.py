@@ -74,14 +74,39 @@ def get_daily_sales(
             hourly[h]["sales"] += s.total
             hourly[h]["guests"] += s.guest_count
 
+    # 当日の出勤スタッフと勤務時間・労務費
+    from app.models.staff import Staff as StaffModel
+    day_attendances = db.query(Attendance).filter(Attendance.date == target_date).all()
+    staff_ids = [a.staff_id for a in day_attendances if a.staff_id]
+    staff_map = {s.id: s for s in db.query(StaffModel).filter(StaffModel.id.in_(staff_ids)).all()} if staff_ids else {}
+
+    labor_cost = 0
+    on_duty = []
+    for a in day_attendances:
+        s = staff_map.get(a.staff_id)
+        wage = a.wage or 0
+        if not wage and s and a.work_minutes:
+            from app.services.wage_calculator import calculate_daily_wage
+            wage = calculate_daily_wage(s, a)
+        labor_cost += wage
+        on_duty.append({
+            "staff_name": s.name if s else f"ID:{a.staff_id}",
+            "clock_in": a.clock_in.strftime("%H:%M") if a.clock_in else None,
+            "clock_out": a.clock_out.strftime("%H:%M") if a.clock_out else None,
+            "work_minutes": a.work_minutes or 0,
+            "wage": wage,
+        })
+
     return {
         "period": target_date.isoformat(),
         "total_sales": total_sales,
         "total_guests": total_guests,
         "avg_per_guest": int(total_sales / total_guests) if total_guests > 0 else 0,
+        "labor_cost": labor_cost,
         "daily_data": [],
         "product_breakdown": product_breakdown,
         "hourly_data": list(hourly.values()),
+        "on_duty": on_duty,
     }
 
 

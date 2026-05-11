@@ -212,6 +212,16 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
     work_days = 0
     daily_details = []
 
+    # シフトをまとめて取得（遅刻・早退判定用）
+    from app.models.shift import Shift
+    from datetime import time as dtime
+    shifts = db.query(Shift).filter(
+        Shift.staff_id == staff_id,
+        Shift.date >= date(year, month, 1),
+        Shift.date <= date(year, month, last_day),
+    ).all()
+    shift_map = {s.date: s for s in shifts}
+
     for att in attendances:
         if not att.work_minutes:
             continue
@@ -234,6 +244,28 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
         total_night_premium += night_premium
         total_overtime_premium += overtime_premium
 
+        # 遅刻・早退判定
+        shift = shift_map.get(att.date)
+        is_late = False
+        is_early_leave = False
+        if shift and att.clock_in:
+            try:
+                sh, sm = map(int, shift.start_time.split(":"))
+                shift_start = datetime.combine(att.date, dtime(sh, sm))
+                is_late = (att.clock_in - shift_start).total_seconds() > 5 * 60
+            except Exception:
+                pass
+        if shift and att.clock_out:
+            try:
+                eh, em = map(int, shift.end_time.split(":"))
+                shift_end = datetime.combine(att.date, dtime(eh, em))
+                # バーは深夜営業なので終業が翌日の場合を考慮
+                if eh < 12:
+                    shift_end = datetime.combine(att.date + timedelta(days=1), dtime(eh, em))
+                is_early_leave = (shift_end - att.clock_out).total_seconds() > 5 * 60
+            except Exception:
+                pass
+
         day_drink_back = drink_back_by_date.get(att.date.isoformat(), 0)
         daily_details.append({
             "date": att.date.isoformat(),
@@ -249,6 +281,9 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
             "overtime_premium": overtime_premium,
             "drink_back": day_drink_back,
             "daily_total": daily_total + day_drink_back,
+            "is_late": is_late,
+            "is_early_leave": is_early_leave,
+            "absence_type": getattr(att, "absence_type", None),
         })
 
     total_wage = total_base_pay + total_night_premium + total_overtime_premium + drink_back_total

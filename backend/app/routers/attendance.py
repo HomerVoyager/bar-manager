@@ -381,3 +381,65 @@ def generate_payslip(
             "Content-Disposition": f'attachment; filename="{filename}"',
         }
     )
+
+
+# ── 欠勤・有給登録 ──────────────────────────────────────────────────────────
+from pydantic import BaseModel as _BM
+
+class AbsenceRequest(_BM):
+    staff_id: int
+    date: str          # YYYY-MM-DD
+    absence_type: str  # absent / paid_leave / special_leave
+    note: str = ""
+
+
+@router.post("/absence", summary="欠勤・有給登録")
+def register_absence(
+    body: AbsenceRequest,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager_or_above),
+):
+    """欠勤・有給・特休を登録する（既存レコードがあれば更新）"""
+    target_date = date.fromisoformat(body.date)
+
+    att = db.query(Attendance).filter(
+        Attendance.staff_id == body.staff_id,
+        Attendance.date == target_date,
+    ).first()
+
+    if att:
+        att.absence_type = body.absence_type
+        att.absence_note = body.note
+    else:
+        att = Attendance(
+            staff_id=body.staff_id,
+            date=target_date,
+            absence_type=body.absence_type,
+            absence_note=body.note,
+            break_minutes=0,
+        )
+        db.add(att)
+
+    db.commit()
+    db.refresh(att)
+    return {"id": att.id, "absence_type": att.absence_type, "date": att.date.isoformat()}
+
+
+@router.delete("/absence/{attendance_id}", summary="欠勤・有給取り消し")
+def delete_absence(
+    attendance_id: int,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager_or_above),
+):
+    att = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    if not att:
+        raise HTTPException(status_code=404, detail="レコードが見つかりません")
+    if att.clock_in:
+        # 打刻があるレコードは absence_type だけ消す
+        att.absence_type = None
+        att.absence_note = None
+        db.commit()
+    else:
+        db.delete(att)
+        db.commit()
+    return {"ok": True}

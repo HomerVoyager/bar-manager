@@ -13,6 +13,9 @@ import AttendanceManage from './pages/AttendanceManage';
 import Shifts from './pages/Shifts';
 import Tables from './pages/Tables';
 import Staff from './pages/Staff';
+import Payslip from './pages/Payslip';
+import DailyReport from './pages/DailyReport';
+import Customers from './pages/Customers';
 import LoadingSpinner from './components/LoadingSpinner';
 
 class PageErrorBoundary extends React.Component<
@@ -123,6 +126,21 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/payslip/:staffId/:year/:month" element={
+          <ProtectedRoute managerOrAbove>
+            <PageErrorBoundary><Payslip /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
+        <Route path="/daily-report" element={
+          <ProtectedRoute managerOrAbove>
+            <PageErrorBoundary><DailyReport /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
+        <Route path="/customers" element={
+          <ProtectedRoute managerOrAbove>
+            <PageErrorBoundary><Customers /></PageErrorBoundary>
+          </ProtectedRoute>
+        } />
       </Route>
 
       {/* 未定義パスはダッシュボードへ */}
