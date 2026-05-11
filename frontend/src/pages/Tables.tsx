@@ -736,6 +736,7 @@ const Tables: React.FC = () => {
                 )}
               </div>
             )}
+            {selectedPlan !== 'nomi_hodai' && (
             <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
               <label className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setSetFeeEnabled((v) => !v)}>
                 <div className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${setFeeEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}>
@@ -745,6 +746,7 @@ const Tables: React.FC = () => {
               </label>
               <span className={`text-sm font-semibold ${setFeeEnabled ? 'text-amber-400' : 'text-gray-600'}`}>¥1,000</span>
             </div>
+            )}
           </form>
         </Modal>
       )}
