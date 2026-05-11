@@ -11,6 +11,7 @@ class StaffBase(BaseModel):
     name: str = Field(..., max_length=50, description="スタッフ名")
     role: str = Field(default="staff", description="ロール (manager/staff)")
     hourly_wage: int = Field(default=1000, ge=0, description="時給（円）")
+    drink_back_rate: float = Field(default=0.0, ge=0.0, le=100.0, description="ドリンクバック率（%）")
     face_id: Optional[str] = Field(None, description="顔認識ID")
 
 
@@ -36,6 +37,7 @@ class StaffUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     role: Optional[str] = None
     hourly_wage: Optional[int] = Field(None, ge=0)
+    drink_back_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
     face_id: Optional[str] = None
     is_active: Optional[bool] = None
     # パスワード変更（省略可）

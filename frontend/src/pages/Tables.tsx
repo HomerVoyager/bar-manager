@@ -27,6 +27,7 @@ import {
   addOrderItem,
   removeOrderItem,
 } from '../api/sessions';
+import { fetchStaffDrinks, createStaffDrink, deleteStaffDrink } from '../api/staff_drinks';
 import Modal from '../components/Modal';
 import AlertBadge from '../components/AlertBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -37,6 +38,7 @@ import type {
   Staff,
   Session,
   OrderItem,
+  StaffDrink,
   OpenSessionForm,
   AddOrderItemForm,
 } from '../types';
@@ -70,6 +72,7 @@ const Tables: React.FC = () => {
   const [isTableMasterModal, setIsTableMasterModal] = useState(false);
   const [editingTable, setEditingTable] = useState<Table | null>(null);
   const [splitCount, setSplitCount] = useState<number>(2);
+  const [staffDrinkForm, setStaffDrinkForm] = useState({ staff_id: '', product_id: '', qty: 1 });
   const queryClient = useQueryClient();
 
   // WebSocketリアルタイム更新
@@ -271,6 +274,45 @@ const Tables: React.FC = () => {
       alert(e?.response?.data?.detail ?? '注文の削除に失敗しました。');
     },
   });
+
+  // スタッフドリンク一覧
+  const currentSessionId = selectedTable?.current_session?.id;
+  const { data: staffDrinks = [] } = useQuery<StaffDrink[]>({
+    queryKey: ['staff-drinks', currentSessionId],
+    queryFn: () => fetchStaffDrinks(currentSessionId!),
+    enabled: isSessionDetailModal && !!currentSessionId,
+  });
+
+  // スタッフドリンク追加ミューテーション
+  const addStaffDrinkMutation = useMutation({
+    mutationFn: createStaffDrink,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-drinks', currentSessionId] });
+      setStaffDrinkForm({ staff_id: '', product_id: '', qty: 1 });
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? 'スタッフドリンクの追加に失敗しました。');
+    },
+  });
+
+  // スタッフドリンク削除ミューテーション
+  const removeStaffDrinkMutation = useMutation({
+    mutationFn: deleteStaffDrink,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff-drinks', currentSessionId] }),
+    onError: () => alert('スタッフドリンクの削除に失敗しました。'),
+  });
+
+  const handleAddStaffDrink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTable?.current_session || !staffDrinkForm.staff_id) return;
+    addStaffDrinkMutation.mutate({
+      session_id: selectedTable.current_session.id,
+      staff_id: Number(staffDrinkForm.staff_id),
+      product_id: staffDrinkForm.product_id ? Number(staffDrinkForm.product_id) : undefined,
+      qty: Number(staffDrinkForm.qty),
+    });
+  };
 
   // テーブルカードクリック処理
   const handleTableClick = (table: Table) => {
@@ -755,6 +797,82 @@ const Tables: React.FC = () => {
                   className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm transition-colors flex items-center gap-1.5"
                 >
                   {addOrderMutation.isPending ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5" />
+                  )}
+                  追加
+                </button>
+              </form>
+            </div>
+
+            {/* スタッフドリンク */}
+            <div className="border-t border-gray-700 pt-4">
+              <h4 className="text-white font-medium text-sm mb-2 flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-400" />
+                スタッフドリンク
+              </h4>
+
+              {/* 既存のスタッフドリンク一覧 */}
+              {staffDrinks.length > 0 && (
+                <div className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
+                  {staffDrinks.map((d) => (
+                    <div key={d.id} className="flex items-center justify-between bg-indigo-900/20 border border-indigo-800 rounded-lg px-3 py-1.5 text-xs">
+                      <span className="text-indigo-300 font-medium">{d.staff_name}</span>
+                      <span className="text-gray-400">{d.product_name ?? '指定なし'} ×{d.qty}</span>
+                      <span className="text-amber-400">バック: {formatYen(d.back_amount)}</span>
+                      <button
+                        onClick={() => removeStaffDrinkMutation.mutate(d.id)}
+                        className="p-0.5 text-gray-600 hover:text-red-400 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* スタッフドリンク追加フォーム */}
+              <form onSubmit={handleAddStaffDrink} className="flex flex-wrap gap-2">
+                <select
+                  value={staffDrinkForm.staff_id}
+                  onChange={(e) => setStaffDrinkForm((f) => ({ ...f, staff_id: e.target.value }))}
+                  className="flex-1 min-w-32 px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                >
+                  <option value="">スタッフを選択</option>
+                  {staffList?.filter((s) => s.is_active).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.drink_back_rate}%)
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={staffDrinkForm.product_id}
+                  onChange={(e) => setStaffDrinkForm((f) => ({ ...f, product_id: e.target.value }))}
+                  className="flex-1 min-w-32 px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">商品（任意）</option>
+                  {products?.filter((p) => p.is_active).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({formatYen(p.price)})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={staffDrinkForm.qty}
+                  onChange={(e) => setStaffDrinkForm((f) => ({ ...f, qty: Number(e.target.value) }))}
+                  className="w-20 px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                  type="submit"
+                  disabled={addStaffDrinkMutation.isPending}
+                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                >
+                  {addStaffDrinkMutation.isPending ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Plus className="w-3.5 h-3.5" />

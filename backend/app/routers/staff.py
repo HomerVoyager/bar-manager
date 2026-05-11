@@ -55,6 +55,7 @@ def create_staff(
         name=staff_data.name,
         role=staff_data.role,
         hourly_wage=staff_data.hourly_wage,
+        drink_back_rate=staff_data.drink_back_rate,
         face_id=staff_data.face_id,
         password_hash=get_password_hash(staff_data.password),
     )

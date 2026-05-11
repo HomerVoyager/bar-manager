@@ -8,6 +8,7 @@ export interface Staff {
   face_id?: string;
   role: 'manager' | 'staff';
   hourly_wage: number;
+  drink_back_rate: number;
   is_active: boolean;
   created_at: string;
 }
@@ -144,7 +145,23 @@ export interface AttendanceSummary {
   work_days: number;
   total_work_minutes: number;
   total_night_minutes: number;
+  drink_back_total: number;
   total_wage: number;
+}
+
+// スタッフドリンク（ドリンクバック）
+export interface StaffDrink {
+  id: number;
+  session_id: number;
+  staff_id: number;
+  product_id?: number;
+  qty: number;
+  unit_price: number;
+  back_amount: number;
+  note?: string;
+  ordered_at: string;
+  staff_name?: string;
+  product_name?: string;
 }
 
 // セッション開始フォーム
@@ -168,6 +185,7 @@ export interface CreateStaffForm {
   name: string;
   role: 'manager' | 'staff';
   hourly_wage: number;
+  drink_back_rate: number;
   password: string;
 }
 

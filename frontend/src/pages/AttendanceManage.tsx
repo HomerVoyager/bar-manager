@@ -131,6 +131,7 @@ const AttendanceManagePage: React.FC = () => {
                 <th className="px-4 py-3 text-right">出勤日数</th>
                 <th className="px-4 py-3 text-right">勤務時間</th>
                 <th className="px-4 py-3 text-right">深夜時間</th>
+                <th className="px-4 py-3 text-right">ドリンクバック</th>
                 <th className="px-4 py-3 text-right">支給額</th>
                 <th className="px-4 py-3 text-center">PDF</th>
               </tr>
@@ -142,6 +143,7 @@ const AttendanceManagePage: React.FC = () => {
                   <td className="px-4 py-3 text-right">{s.work_days}日</td>
                   <td className="px-4 py-3 text-right">{minutesToHM(s.total_work_minutes)}</td>
                   <td className="px-4 py-3 text-right">{minutesToHM(s.total_night_minutes)}</td>
+                  <td className="px-4 py-3 text-right text-indigo-400">{yen(s.drink_back_total)}</td>
                   <td className="px-4 py-3 text-right text-amber-400 font-semibold">{yen(s.total_wage)}</td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => handleDownload(s.staff_id, s.staff_name)}

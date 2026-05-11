@@ -234,6 +234,7 @@ def get_payslip(
         year=year,
         month=month,
         hourly_wage=staff.hourly_wage,
+        drink_back_rate=staff.drink_back_rate,
         work_days=wage_data.work_days,
         total_work_minutes=wage_data.total_work_minutes,
         total_night_minutes=wage_data.total_night_minutes,
@@ -241,6 +242,7 @@ def get_payslip(
         base_pay=wage_data.base_pay,
         night_premium=wage_data.night_premium,
         overtime_premium=wage_data.overtime_premium,
+        drink_back_total=wage_data.drink_back_total,
         total_wage=wage_data.total_wage,
     )
 

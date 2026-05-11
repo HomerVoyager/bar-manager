@@ -1,7 +1,7 @@
 # スタッフモデル
 # バーで働くスタッフ（マネージャー・スタッフ）の情報を管理
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -27,6 +27,9 @@ class Staff(Base):
     # 時給（円）
     hourly_wage = Column(Integer, nullable=False, default=1000)
 
+    # ドリンクバック率（%）
+    drink_back_rate = Column(Float, nullable=False, default=0.0)
+
     # 在籍フラグ（退職時はFalseに更新、物理削除はしない）
     is_active = Column(Boolean, default=True, nullable=False)
 
@@ -41,6 +44,7 @@ class Staff(Base):
     stock_logs = relationship("StockLog", back_populates="staff")
     attendances = relationship("Attendance", back_populates="staff")
     shifts = relationship("Shift", back_populates="staff")
+    staff_drinks = relationship("StaffDrink", back_populates="staff")
 
     def __repr__(self):
         return f"<Staff id={self.id} name={self.name} role={self.role}>"

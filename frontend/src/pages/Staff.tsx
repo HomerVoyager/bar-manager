@@ -91,6 +91,7 @@ const StaffPage: React.FC = () => {
       name: staff.name,
       role: staff.role,
       hourly_wage: staff.hourly_wage,
+      drink_back_rate: staff.drink_back_rate,
     });
   };
 
@@ -113,6 +114,7 @@ const StaffPage: React.FC = () => {
     createMutation.mutate({
       ...data,
       hourly_wage: Number(data.hourly_wage),
+      drink_back_rate: Number(data.drink_back_rate),
     });
   };
 
@@ -123,6 +125,7 @@ const StaffPage: React.FC = () => {
       name: data.name,
       role: data.role,
       hourly_wage: data.hourly_wage ? Number(data.hourly_wage) : undefined,
+      drink_back_rate: data.drink_back_rate !== undefined ? Number(data.drink_back_rate) : undefined,
     };
     // パスワードは入力された場合のみ送信（空欄はバリデーションエラーになるため除外）
     if (data.password) updateData.password = data.password;
@@ -193,6 +196,7 @@ const StaffPage: React.FC = () => {
                   <th className="text-left text-gray-400 px-5 py-3 font-medium">スタッフ名</th>
                   <th className="text-center text-gray-400 px-5 py-3 font-medium">ロール</th>
                   <th className="text-right text-gray-400 px-5 py-3 font-medium">時給</th>
+                  <th className="text-right text-gray-400 px-5 py-3 font-medium">バック率</th>
                   <th className="text-center text-gray-400 px-5 py-3 font-medium">状態</th>
                   <th className="text-left text-gray-400 px-5 py-3 font-medium">登録日</th>
                   <th className="text-center text-gray-400 px-5 py-3 font-medium">操作</th>
@@ -224,6 +228,9 @@ const StaffPage: React.FC = () => {
                     </td>
                     <td className="px-5 py-3 text-right text-amber-400 font-medium">
                       {formatYen(staff.hourly_wage)}/時
+                    </td>
+                    <td className="px-5 py-3 text-right text-indigo-400 font-medium">
+                      {staff.drink_back_rate}%
                     </td>
                     <td className="px-5 py-3 text-center">
                       <AlertBadge
@@ -270,7 +277,7 @@ const StaffPage: React.FC = () => {
                 ))}
                 {(!staffList || staffList.length === 0) && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-gray-500">
+                    <td colSpan={7} className="px-5 py-10 text-center text-gray-500">
                       スタッフが登録されていません
                     </td>
                   </tr>
@@ -353,6 +360,27 @@ const StaffPage: React.FC = () => {
               />
               {createErrors.hourly_wage && (
                 <p className="mt-1 text-xs text-red-400">{createErrors.hourly_wage.message}</p>
+              )}
+            </div>
+
+            {/* ドリンクバック率 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">ドリンクバック率（%）</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="例: 10"
+                defaultValue={0}
+                {...registerCreate('drink_back_rate', {
+                  min: { value: 0, message: '0以上で入力してください' },
+                  max: { value: 100, message: '100以下で入力してください' },
+                })}
+              />
+              {createErrors.drink_back_rate && (
+                <p className="mt-1 text-xs text-red-400">{createErrors.drink_back_rate.message}</p>
               )}
             </div>
 
@@ -440,6 +468,25 @@ const StaffPage: React.FC = () => {
               />
               {editErrors.hourly_wage && (
                 <p className="mt-1 text-xs text-red-400">{editErrors.hourly_wage.message}</p>
+              )}
+            </div>
+
+            {/* ドリンクバック率 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">ドリンクバック率（%）</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                {...registerEdit('drink_back_rate', {
+                  min: { value: 0, message: '0以上で入力してください' },
+                  max: { value: 100, message: '100以下で入力してください' },
+                })}
+              />
+              {editErrors.drink_back_rate && (
+                <p className="mt-1 text-xs text-red-400">{editErrors.drink_back_rate.message}</p>
               )}
             </div>
 

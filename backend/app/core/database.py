@@ -51,5 +51,5 @@ def create_tables():
     アプリケーション起動時に呼び出される
     """
     # インポートは循環参照を避けるためにここで行う
-    from app.models import staff, product, table, session, order_item, stock_log, attendance  # noqa: F401
+    from app.models import staff, product, table, session, order_item, stock_log, attendance, shift, staff_drink  # noqa: F401
     Base.metadata.create_all(bind=engine)

@@ -226,7 +226,24 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
             "daily_total": daily_total,
         })
 
-    total_wage = total_base_pay + total_night_premium + total_overtime_premium
+    # ドリンクバック合計を計算
+    from app.models.staff_drink import StaffDrink
+    from app.models.session import Session as BarSession
+    from sqlalchemy import extract
+
+    drink_back_records = (
+        db.query(StaffDrink)
+        .join(BarSession, StaffDrink.session_id == BarSession.id)
+        .filter(
+            StaffDrink.staff_id == staff_id,
+            extract("year", BarSession.started_at) == year,
+            extract("month", BarSession.started_at) == month,
+        )
+        .all()
+    )
+    drink_back_total = sum(r.back_amount for r in drink_back_records)
+
+    total_wage = total_base_pay + total_night_premium + total_overtime_premium + drink_back_total
 
     return MonthlyWageResponse(
         staff_id=staff_id,
@@ -240,6 +257,7 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
         base_pay=total_base_pay,
         night_premium=total_night_premium,
         overtime_premium=total_overtime_premium,
+        drink_back_total=drink_back_total,
         total_wage=total_wage,
         daily_details=daily_details,
     )
