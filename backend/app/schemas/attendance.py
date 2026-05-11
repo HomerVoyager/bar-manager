@@ -1,7 +1,7 @@
 # 勤怠スキーマ
 # 出退勤記録のPydanticスキーマ
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from datetime import datetime, date as Date
 
@@ -52,10 +52,16 @@ class AttendanceResponse(AttendanceBase):
     work_minutes: Optional[int] = None
     night_minutes: Optional[int] = None
     wage: Optional[int] = None
-    # スタッフ情報（埋め込み）
     staff: Optional[StaffBrief] = None
+    staff_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode='after')
+    def populate_staff_name(self) -> 'AttendanceResponse':
+        if self.staff and not self.staff_name:
+            self.staff_name = self.staff.name
+        return self
 
 
 class MonthlyWageResponse(BaseModel):

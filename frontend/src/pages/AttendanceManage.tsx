@@ -1,9 +1,9 @@
 // マネージャー用勤怠管理ページ
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, getYear, getMonth, getDaysInMonth, parseISO } from 'date-fns';
-import { ja } from 'date-fns/locale';
-import { Lock, Download, User } from 'lucide-react';
+import { format, getYear, getMonth, getDaysInMonth } from 'date-fns';
+import { Lock, Download, User, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
   fetchAttendance, fetchTodayAttendance, fetchMonthlySummary,
   fetchMonthlyDetail, monthlyClose, downloadPayslipPdf,
@@ -98,6 +98,57 @@ const AttendanceManagePage: React.FC = () => {
   };
 
   const dayRows = buildDayRows();
+
+  const handleExcelDownload = () => {
+    if (!personDetail) return;
+    const rows = buildDayRows();
+    const DAY_JP = ['日', '月', '火', '水', '木', '金', '土'];
+    const toHM = (m?: number) => {
+      if (!m) return '';
+      return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+    };
+
+    const data: (string | number)[][] = [
+      ['勤務時間表'],
+      [`${year}年${month}月`, '', `氏名`, personDetail.staff_name],
+      [],
+      ['日', '曜日', '出勤', '退勤', '勤務時間', '深夜時間', '残業時間', '日給'],
+      ...rows.map(({ day, dateStr, dow, detail }) => [
+        day,
+        DAY_JP[dow],
+        detail?.clock_in ?? '',
+        detail?.clock_out ?? '',
+        detail ? toHM(detail.work_minutes) : '',
+        detail && detail.night_minutes > 0 ? toHM(detail.night_minutes) : '',
+        detail && detail.overtime_minutes > 0 ? toHM(detail.overtime_minutes) : '',
+        detail ? detail.daily_total : '',
+      ]),
+      [],
+      [
+        `出勤日数: ${personDetail.work_days}日`, '', '',
+        '合計',
+        toHM(personDetail.total_work_minutes),
+        toHM(personDetail.total_night_minutes),
+        toHM(personDetail.total_overtime_minutes),
+        personDetail.total_wage,
+      ],
+      [],
+      ['基本給', '深夜手当', '残業手当', 'ドリンクバック', '合計支給額'],
+      [
+        personDetail.base_pay,
+        personDetail.night_premium,
+        personDetail.overtime_premium,
+        personDetail.drink_back_total,
+        personDetail.total_wage,
+      ],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{ wch: 4 }, { wch: 4 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月`);
+    XLSX.writeFile(wb, `勤務時間表_${personDetail.staff_name}_${year}${String(month).padStart(2, '0')}.xlsx`);
+  };
 
   const tabLabels: { key: 'today' | 'summary' | 'detail' | 'person'; label: string }[] = [
     { key: 'today', label: '本日の状況' },
@@ -261,10 +312,16 @@ const AttendanceManagePage: React.FC = () => {
                   <p className="text-gray-400 text-xs mb-1">{year}年{month}月</p>
                   <p className="text-white text-xl font-bold">{personDetail.staff_name}</p>
                 </div>
-                <button onClick={() => handleDownload(selectedStaffId, personDetail.staff_name)}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm">
-                  <Download className="w-4 h-4" /> PDF
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={handleExcelDownload}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-800 hover:bg-green-700 text-green-200 rounded-lg text-sm">
+                    <FileSpreadsheet className="w-4 h-4" /> Excel
+                  </button>
+                  <button onClick={() => handleDownload(selectedStaffId, personDetail.staff_name)}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm">
+                    <Download className="w-4 h-4" /> PDF
+                  </button>
+                </div>
               </div>
 
               {/* 日別テーブル */}
