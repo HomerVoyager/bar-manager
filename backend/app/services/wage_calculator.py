@@ -181,6 +181,27 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
         Attendance.date <= date(year, month, last_day),
     ).order_by(Attendance.date).all()
 
+    # ドリンクバック（日別）を先に計算
+    from app.models.staff_drink import StaffDrink
+    from app.models.session import Session as BarSession
+    from sqlalchemy import extract
+
+    drink_back_rows = (
+        db.query(StaffDrink, BarSession.started_at)
+        .join(BarSession, StaffDrink.session_id == BarSession.id)
+        .filter(
+            StaffDrink.staff_id == staff_id,
+            extract("year", BarSession.started_at) == year,
+            extract("month", BarSession.started_at) == month,
+        )
+        .all()
+    )
+    drink_back_by_date: dict = {}
+    for drink, started_at in drink_back_rows:
+        d = started_at.date().isoformat()
+        drink_back_by_date[d] = drink_back_by_date.get(d, 0) + drink.back_amount
+    drink_back_total = sum(drink_back_by_date.values())
+
     # 月次集計
     total_work_minutes = 0
     total_night_minutes = 0
@@ -213,35 +234,22 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
         total_night_premium += night_premium
         total_overtime_premium += overtime_premium
 
+        day_drink_back = drink_back_by_date.get(att.date.isoformat(), 0)
         daily_details.append({
             "date": att.date.isoformat(),
+            "attendance_id": att.id,
             "clock_in": att.clock_in.strftime("%H:%M") if att.clock_in else None,
             "clock_out": att.clock_out.strftime("%H:%M") if att.clock_out else None,
+            "break_minutes": att.break_minutes or 0,
             "work_minutes": work_minutes,
             "night_minutes": night_minutes,
             "overtime_minutes": overtime_minutes,
             "base_pay": base_pay,
             "night_premium": night_premium,
             "overtime_premium": overtime_premium,
-            "daily_total": daily_total,
+            "drink_back": day_drink_back,
+            "daily_total": daily_total + day_drink_back,
         })
-
-    # ドリンクバック合計を計算
-    from app.models.staff_drink import StaffDrink
-    from app.models.session import Session as BarSession
-    from sqlalchemy import extract
-
-    drink_back_records = (
-        db.query(StaffDrink)
-        .join(BarSession, StaffDrink.session_id == BarSession.id)
-        .filter(
-            StaffDrink.staff_id == staff_id,
-            extract("year", BarSession.started_at) == year,
-            extract("month", BarSession.started_at) == month,
-        )
-        .all()
-    )
-    drink_back_total = sum(r.back_amount for r in drink_back_records)
 
     total_wage = total_base_pay + total_night_premium + total_overtime_premium + drink_back_total
 

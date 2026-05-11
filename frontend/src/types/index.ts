@@ -80,6 +80,9 @@ export interface Attendance {
   staff_id: number;
   clock_in?: string;
   clock_out?: string;
+  break_start?: string;
+  break_end?: string;
+  break_minutes: number;
   date: string;
   work_minutes?: number;
   night_minutes?: number;

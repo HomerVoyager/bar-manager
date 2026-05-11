@@ -42,6 +42,18 @@ export const clockOut = async (staffId: number): Promise<Attendance> => {
   return response.data;
 };
 
+// 休憩開始打刻
+export const breakStart = async (staffId: number): Promise<Attendance> => {
+  const response = await apiClient.post<Attendance>('/attendance/break-start', { staff_id: staffId });
+  return response.data;
+};
+
+// 休憩終了打刻
+export const breakEnd = async (staffId: number): Promise<Attendance> => {
+  const response = await apiClient.post<Attendance>('/attendance/break-end', { staff_id: staffId });
+  return response.data;
+};
+
 // 月次サマリーを取得（スタッフ別集計）
 export const fetchMonthlySummary = async (
   year: number,
@@ -67,14 +79,17 @@ export const fetchMonthlyDetail = async (
 
 export interface DailyDetail {
   date: string;
+  attendance_id: number;
   clock_in?: string;
   clock_out?: string;
+  break_minutes: number;
   work_minutes: number;
   night_minutes: number;
   overtime_minutes: number;
   base_pay: number;
   night_premium: number;
   overtime_premium: number;
+  drink_back: number;
   daily_total: number;
 }
 
@@ -103,7 +118,7 @@ export const downloadPayslipPdf = async (
 // 手動で勤怠記録を修正
 export const updateAttendance = async (
   id: number,
-  data: { clock_in?: string; clock_out?: string }
+  data: { clock_in?: string; clock_out?: string; break_minutes?: number }
 ): Promise<Attendance> => {
   const response = await apiClient.put<Attendance>(`/attendance/${id}`, data);
   return response.data;

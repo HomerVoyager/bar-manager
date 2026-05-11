@@ -15,33 +15,32 @@ class AttendanceBase(BaseModel):
 
 
 class ClockInRequest(BaseModel):
-    """打刻（出勤）リクエストスキーマ"""
-    staff_id: int = Field(..., description="スタッフID")
-    # 打刻時刻（省略時は現在時刻）
-    clock_in: Optional[datetime] = Field(None, description="出勤時刻（省略時は現在時刻）")
+    staff_id: int
+    clock_in: Optional[datetime] = None
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "staff_id": 2
-            }
-        }
-    }
+    model_config = {"json_schema_extra": {"example": {"staff_id": 2}}}
 
 
 class ClockOutRequest(BaseModel):
-    """打刻（退勤）リクエストスキーマ"""
-    staff_id: int = Field(..., description="スタッフID")
-    # 打刻時刻（省略時は現在時刻）
-    clock_out: Optional[datetime] = Field(None, description="退勤時刻（省略時は現在時刻）")
+    staff_id: int
+    clock_out: Optional[datetime] = None
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "staff_id": 2
-            }
-        }
-    }
+    model_config = {"json_schema_extra": {"example": {"staff_id": 2}}}
+
+
+class BreakStartRequest(BaseModel):
+    staff_id: int
+
+
+class BreakEndRequest(BaseModel):
+    staff_id: int
+
+
+class AttendanceUpdate(BaseModel):
+    """打刻修正スキーマ（人別詳細から編集）"""
+    clock_in: Optional[str] = None
+    clock_out: Optional[str] = None
+    break_minutes: Optional[int] = None
 
 
 class AttendanceResponse(AttendanceBase):
@@ -49,6 +48,9 @@ class AttendanceResponse(AttendanceBase):
     id: int
     clock_in: Optional[datetime] = None
     clock_out: Optional[datetime] = None
+    break_start: Optional[datetime] = None
+    break_end: Optional[datetime] = None
+    break_minutes: int = 0
     work_minutes: Optional[int] = None
     night_minutes: Optional[int] = None
     wage: Optional[int] = None

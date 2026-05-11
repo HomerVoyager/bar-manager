@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, getYear, getMonth, getDaysInMonth } from 'date-fns';
-import { Lock, Download, User, FileSpreadsheet } from 'lucide-react';
+import { Lock, Download, User, FileSpreadsheet, Edit2, X } from 'lucide-react';
 import XS from 'xlsx-js-style';
 import {
   fetchAttendance, fetchTodayAttendance, fetchMonthlySummary,
-  fetchMonthlyDetail, monthlyClose, downloadPayslipPdf,
+  fetchMonthlyDetail, monthlyClose, downloadPayslipPdf, updateAttendance,
   type DailyDetail,
 } from '../api/attendance';
 import { fetchStaff } from '../api/staff';
@@ -20,11 +20,20 @@ const yen = (n?: number) => (n ? `¥${n.toLocaleString('ja-JP')}` : '-');
 
 const DAY_LABELS = ['月', '火', '水', '木', '金', '土', '日'];
 
+interface EditForm {
+  attendanceId: number;
+  dateLabel: string;
+  clockIn: string;
+  clockOut: string;
+  breakMinutes: string;
+}
+
 const AttendanceManagePage: React.FC = () => {
   const [year, setYear] = useState(getYear(new Date()));
   const [month, setMonth] = useState(getMonth(new Date()) + 1);
   const [tab, setTab] = useState<'today' | 'summary' | 'detail' | 'person'>('today');
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
   const queryClient = useQueryClient();
 
   const { data: staffList = [] } = useQuery<Staff[]>({
@@ -64,6 +73,38 @@ const AttendanceManagePage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateAttendance>[1] }) =>
+      updateAttendance(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-person', selectedStaffId, year, month] });
+      setEditForm(null);
+    },
+    onError: (e: any) => alert(e?.response?.data?.detail ?? '更新に失敗しました'),
+  });
+
+  const handleEditSave = () => {
+    if (!editForm) return;
+    updateMutation.mutate({
+      id: editForm.attendanceId,
+      data: {
+        clock_in: editForm.clockIn || undefined,
+        clock_out: editForm.clockOut || undefined,
+        break_minutes: editForm.breakMinutes !== '' ? Number(editForm.breakMinutes) : undefined,
+      },
+    });
+  };
+
+  const openEdit = (detail: DailyDetail, dateLabel: string) => {
+    setEditForm({
+      attendanceId: detail.attendance_id,
+      dateLabel,
+      clockIn: detail.clock_in ?? '',
+      clockOut: detail.clock_out ?? '',
+      breakMinutes: String(detail.break_minutes ?? 0),
+    });
+  };
 
   const handleDownload = async (staffId: number, name: string) => {
     try {
@@ -398,28 +439,27 @@ const AttendanceManagePage: React.FC = () => {
 
               {/* 日別テーブル */}
               <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
-                <table className="w-full text-sm min-w-[640px]">
+                <table className="w-full text-sm min-w-[760px]">
                   <thead className="bg-gray-700 text-gray-300 text-xs">
                     <tr>
                       <th className="px-3 py-2 text-center w-10">日</th>
                       <th className="px-3 py-2 text-center w-10">曜</th>
                       <th className="px-3 py-2 text-center">出勤</th>
                       <th className="px-3 py-2 text-center">退勤</th>
+                      <th className="px-3 py-2 text-right">休憩</th>
                       <th className="px-3 py-2 text-right">勤務時間</th>
                       <th className="px-3 py-2 text-right">深夜</th>
                       <th className="px-3 py-2 text-right">残業</th>
+                      <th className="px-3 py-2 text-right">バック</th>
                       <th className="px-3 py-2 text-right">日給</th>
+                      <th className="px-3 py-2 text-center w-8"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700/50">
                     {dayRows.map(({ day, dateStr, dow, detail }) => {
                       const isSun = dow === 0;
                       const isSat = dow === 6;
-                      const rowBg = isSun
-                        ? 'bg-red-900/10'
-                        : isSat
-                        ? 'bg-blue-900/10'
-                        : '';
+                      const rowBg = isSun ? 'bg-red-900/10' : isSat ? 'bg-blue-900/10' : '';
                       const dowLabel = DAY_LABELS[dow === 0 ? 6 : dow - 1];
                       const dowColor = isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-400';
 
@@ -429,6 +469,9 @@ const AttendanceManagePage: React.FC = () => {
                           <td className={`px-3 py-1.5 text-center text-xs font-medium ${dowColor}`}>{dowLabel}</td>
                           <td className="px-3 py-1.5 text-center text-gray-300">{detail?.clock_in ?? '-'}</td>
                           <td className="px-3 py-1.5 text-center text-gray-300">{detail?.clock_out ?? '-'}</td>
+                          <td className="px-3 py-1.5 text-right text-amber-300 text-xs">
+                            {detail && detail.break_minutes > 0 ? `${detail.break_minutes}分` : '-'}
+                          </td>
                           <td className="px-3 py-1.5 text-right text-white font-medium">
                             {detail ? minutesToHM(detail.work_minutes) : '-'}
                           </td>
@@ -438,8 +481,21 @@ const AttendanceManagePage: React.FC = () => {
                           <td className="px-3 py-1.5 text-right text-yellow-400">
                             {detail && detail.overtime_minutes > 0 ? minutesToHM(detail.overtime_minutes) : '-'}
                           </td>
+                          <td className="px-3 py-1.5 text-right text-purple-400 text-xs">
+                            {detail && detail.drink_back > 0 ? yen(detail.drink_back) : '-'}
+                          </td>
                           <td className="px-3 py-1.5 text-right text-amber-400">
                             {detail ? yen(detail.daily_total) : '-'}
+                          </td>
+                          <td className="px-3 py-1.5 text-center">
+                            {detail && (
+                              <button
+                                onClick={() => openEdit(detail, `${month}/${day}`)}
+                                className="p-1 rounded hover:bg-gray-600 text-gray-500 hover:text-white transition-colors"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -451,11 +507,13 @@ const AttendanceManagePage: React.FC = () => {
                       <td colSpan={2} className="px-3 py-2 text-gray-300">
                         合計 ({personDetail.work_days}日出勤)
                       </td>
-                      <td colSpan={2}></td>
+                      <td colSpan={3}></td>
                       <td className="px-3 py-2 text-right">{minutesToHM(personDetail.total_work_minutes)}</td>
                       <td className="px-3 py-2 text-right text-indigo-300">{minutesToHM(personDetail.total_night_minutes)}</td>
                       <td className="px-3 py-2 text-right text-yellow-300">{minutesToHM(personDetail.total_overtime_minutes)}</td>
+                      <td className="px-3 py-2 text-right text-purple-300">{yen(personDetail.drink_back_total)}</td>
                       <td className="px-3 py-2 text-right text-amber-400">{yen(personDetail.total_wage)}</td>
+                      <td></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -478,6 +536,65 @@ const AttendanceManagePage: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+      )}
+      {/* 打刻修正モーダル */}
+      {editForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-bold">{editForm.dateLabel} の打刻修正</h3>
+              <button onClick={() => setEditForm(null)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">出勤時刻</label>
+                <input
+                  type="time"
+                  value={editForm.clockIn}
+                  onChange={(e) => setEditForm({ ...editForm, clockIn: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">退勤時刻</label>
+                <input
+                  type="time"
+                  value={editForm.clockOut}
+                  onChange={(e) => setEditForm({ ...editForm, clockOut: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">休憩時間（分）</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="480"
+                  value={editForm.breakMinutes}
+                  onChange={(e) => setEditForm({ ...editForm, breakMinutes: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditForm(null)}
+                className="flex-1 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={updateMutation.isPending}
+                className="flex-1 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-semibold text-sm"
+              >
+                {updateMutation.isPending ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

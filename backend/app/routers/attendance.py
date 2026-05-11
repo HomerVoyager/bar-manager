@@ -13,6 +13,7 @@ from app.models.staff import Staff
 from app.models.attendance import Attendance
 from app.schemas.attendance import (
     ClockInRequest, ClockOutRequest, AttendanceResponse,
+    BreakStartRequest, BreakEndRequest, AttendanceUpdate,
     MonthlyWageResponse, PayslipResponse
 )
 from app.services.wage_calculator import (
@@ -95,8 +96,9 @@ def clock_out(
             Attendance.id == attendance.id
         ).first()
 
-    # 勤務時間（分）を計算
-    work_minutes = int((clock_out_time - attendance.clock_in).total_seconds() / 60)
+    # 勤務時間（分）を計算（休憩時間を差し引く）
+    gross_minutes = int((clock_out_time - attendance.clock_in).total_seconds() / 60)
+    work_minutes = max(0, gross_minutes - (attendance.break_minutes or 0))
 
     # 深夜勤務時間（22:00〜翌5:00）を計算
     night_minutes = calculate_night_minutes(attendance.clock_in, clock_out_time)
@@ -176,6 +178,83 @@ def get_today_attendance(
     ).order_by(Attendance.clock_in).all()
 
     return attendances
+
+
+@router.post("/break-start", response_model=AttendanceResponse, summary="休憩開始打刻")
+def break_start(
+    request: BreakStartRequest,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_user)
+):
+    today = date.today()
+    att = db.query(Attendance).filter(
+        Attendance.staff_id == request.staff_id,
+        Attendance.date == today,
+        Attendance.clock_in.isnot(None),
+        Attendance.clock_out.is_(None),
+    ).first()
+    if not att:
+        raise HTTPException(status_code=400, detail="出勤打刻がありません")
+    if att.break_start and not att.break_end:
+        raise HTTPException(status_code=400, detail="既に休憩中です")
+    att.break_start = datetime.now()
+    att.break_end = None
+    db.commit()
+    return db.query(Attendance).options(joinedload(Attendance.staff)).filter(Attendance.id == att.id).first()
+
+
+@router.post("/break-end", response_model=AttendanceResponse, summary="休憩終了打刻")
+def break_end(
+    request: BreakEndRequest,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_user)
+):
+    today = date.today()
+    att = db.query(Attendance).filter(
+        Attendance.staff_id == request.staff_id,
+        Attendance.date == today,
+        Attendance.break_start.isnot(None),
+        Attendance.break_end.is_(None),
+        Attendance.clock_out.is_(None),
+    ).first()
+    if not att:
+        raise HTTPException(status_code=400, detail="休憩打刻が見つかりません")
+    now = datetime.now()
+    att.break_end = now
+    att.break_minutes = (att.break_minutes or 0) + int((now - att.break_start).total_seconds() / 60)
+    db.commit()
+    return db.query(Attendance).options(joinedload(Attendance.staff)).filter(Attendance.id == att.id).first()
+
+
+@router.put("/{attendance_id}", response_model=AttendanceResponse, summary="打刻修正")
+def update_attendance(
+    attendance_id: int,
+    body: AttendanceUpdate,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_manager_or_above)
+):
+    att = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    if not att:
+        raise HTTPException(status_code=404, detail="勤怠記録が見つかりません")
+
+    if body.clock_in is not None:
+        att.clock_in = datetime.fromisoformat(body.clock_in)
+    if body.clock_out is not None:
+        att.clock_out = datetime.fromisoformat(body.clock_out)
+    if body.break_minutes is not None:
+        att.break_minutes = body.break_minutes
+
+    # 退勤済みなら再計算
+    if att.clock_in and att.clock_out:
+        gross = int((att.clock_out - att.clock_in).total_seconds() / 60)
+        att.work_minutes = max(0, gross - (att.break_minutes or 0))
+        att.night_minutes = calculate_night_minutes(att.clock_in, att.clock_out)
+        staff = db.query(Staff).filter(Staff.id == att.staff_id).first()
+        if staff:
+            att.wage = calculate_daily_wage(staff, att)
+
+    db.commit()
+    return db.query(Attendance).options(joinedload(Attendance.staff)).filter(Attendance.id == att.id).first()
 
 
 @router.get("/monthly-detail/{staff_id}", response_model=MonthlyWageResponse, summary="スタッフ別月次詳細取得")
