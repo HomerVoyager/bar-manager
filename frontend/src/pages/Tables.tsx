@@ -1,7 +1,7 @@
 // バー管理システム - 卓管理ページ
 // テーブルのリアルタイム状態管理・注文・会計を行います
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { format, differenceInMinutes } from 'date-fns';
@@ -86,9 +86,9 @@ const Tables: React.FC = () => {
   const [now, setNow] = useState(new Date());
   const queryClient = useQueryClient();
 
-  // 残り時間表示を1分ごとに更新
+  // 残り時間表示を30秒ごとに更新
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60000);
+    const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
 
@@ -99,7 +99,7 @@ const Tables: React.FC = () => {
   const { data: fetchedTables, isLoading, refetch } = useQuery<Table[]>({
     queryKey: ['tables'],
     queryFn: fetchTables,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
   // 商品一覧の取得
@@ -432,13 +432,13 @@ const Tables: React.FC = () => {
     ? Math.ceil(selectedTable.current_session.total / splitCount)
     : 0;
 
-  // ラストオーダーアラート（飲み放題で残り10分以下）
-  const loAlerts = tables.filter((t) => {
+  // ラストオーダーアラート（飲み放題で残り10分以下）— nowが変わるたびに再計算
+  const loAlerts = useMemo(() => tables.filter((t) => {
     const s = t.current_session;
     if (!s || s.plan_type !== 'nomi_hodai' || !s.time_limit_minutes) return false;
     const remaining = s.time_limit_minutes - differenceInMinutes(now, new Date(s.started_at));
     return remaining <= 10;
-  });
+  }), [tables, now]);
 
   if (isLoading) {
     return <LoadingSpinner size="large" message="卓情報を読み込み中..." />;
