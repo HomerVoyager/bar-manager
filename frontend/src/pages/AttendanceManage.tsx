@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, getYear, getMonth, getDaysInMonth } from 'date-fns';
 import { Lock, Download, User, FileSpreadsheet } from 'lucide-react';
+import XS from 'xlsx-js-style';
 import {
   fetchAttendance, fetchTodayAttendance, fetchMonthlySummary,
   fetchMonthlyDetail, monthlyClose, downloadPayslipPdf,
@@ -98,145 +99,127 @@ const AttendanceManagePage: React.FC = () => {
 
   const dayRows = buildDayRows();
 
-  const handleExcelDownload = async () => {
+  const handleExcelDownload = () => {
     if (!personDetail) return;
-    const ExcelJS = (await import('exceljs')).default;
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet(`${year}年${month}月`);
+
 
     const toHM = (m?: number) => (!m ? '' : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`);
     const DAY_JP = ['日', '月', '火', '水', '木', '金', '土'];
-    const thin = { style: 'thin' as const, color: { argb: 'FFBBBBBB' } };
-    const medium = { style: 'medium' as const, color: { argb: 'FF888888' } };
-    const border = (t = thin, b = thin, l = thin, r = thin) => ({ top: t, bottom: b, left: l, right: r });
-    const fill = (argb: string) => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } });
-    const center = { horizontal: 'center' as const, vertical: 'middle' as const };
-    const right  = { horizontal: 'right'  as const, vertical: 'middle' as const };
 
-    ws.columns = [
-      { width: 5 }, { width: 5 }, { width: 9 }, { width: 9 },
-      { width: 11 }, { width: 11 }, { width: 11 }, { width: 14 },
-    ];
+    // ── スタイル定義 ──
+    const S = {
+      title: { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '1F3864' } }, alignment: { horizontal: 'center', vertical: 'center' } },
+      info:  { font: { bold: true, sz: 12 } },
+      hdr:   { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '37474F' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' } } },
+      dayBase: (bg: string, textRgb: string, bold: boolean, align: string) => ({
+        font: { bold, sz: 10, color: { rgb: textRgb } },
+        fill: { patternType: 'solid', fgColor: { rgb: bg } },
+        alignment: { horizontal: align, vertical: 'center' },
+        border: { top: { style: 'hair', color: { rgb: 'CCCCCC' } }, bottom: { style: 'hair', color: { rgb: 'CCCCCC' } }, left: { style: 'thin', color: { rgb: 'AAAAAA' } }, right: { style: 'thin', color: { rgb: 'AAAAAA' } } },
+      }),
+      pay_num: (bg: string, bold: boolean) => ({
+        font: { bold, sz: 10, color: { rgb: bold ? 'C67B00' : '333333' } },
+        fill: { patternType: 'solid', fgColor: { rgb: bg } },
+        alignment: { horizontal: 'right', vertical: 'center' },
+        border: { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' } },
+        numFmt: '¥#,##0',
+      }),
+    };
 
-    // ── タイトル行 ──
-    ws.addRow(['勤務時間表']);
-    ws.mergeCells('A1:H1');
-    Object.assign(ws.getCell('A1'), {
-      font: { bold: true, size: 16, color: { argb: 'FFFFFFFF' } },
-      fill: fill('FF1F3864'), alignment: center,
-    });
-    ws.getRow(1).height = 32;
+    const c = (v: string | number, s: object) => ({ v, s });
+    const n = (v: number, s: object) => ({ v, t: 'n', s });
+    const E = (s: object) => ({ v: '', s });
 
-    // ── 情報行 ──
-    ws.addRow([`${year}年${month}月`, '', '', '', '氏名', '', personDetail.staff_name]);
-    ws.mergeCells('A2:D2'); ws.mergeCells('E2:F2'); ws.mergeCells('G2:H2');
-    ws.getCell('A2').font = { bold: true, size: 12 };
-    ws.getCell('E2').font = { bold: true };
-    ws.getCell('G2').font = { bold: true, size: 12 };
-    ws.getRow(2).height = 24;
+    // ── シート行を構築 ──
+    const rows: object[][] = [];
 
-    // ── 空行 ──
-    ws.addRow([]); ws.getRow(3).height = 6;
+    // タイトル
+    rows.push([c('勤務時間表', S.title), ...Array(7).fill(E(S.title))]);
 
-    // ── ヘッダー行 ──
-    const hRow = ws.addRow(['日', '曜', '出勤', '退勤', '勤務時間', '深夜時間', '残業時間', '日給']);
-    hRow.height = 22;
-    hRow.eachCell(cell => {
-      cell.font = { bold: true, size: 10 };
-      cell.fill = fill('FF404040');
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.alignment = center;
-      cell.border = border(medium, medium);
-    });
+    // 情報行
+    rows.push([
+      c(`${year}年${month}月`, S.info), E(S.info), E(S.info), E(S.info),
+      c('氏名', { font: { bold: true } }), E({}),
+      c(personDetail.staff_name, { font: { bold: true, sz: 12 } }), E({}),
+    ]);
 
-    // ── 日別データ ──
+    // 空行
+    rows.push(Array(8).fill(c('', {})));
+
+    // ヘッダー
+    rows.push(['日','曜','出勤','退勤','勤務時間','深夜時間','残業時間','日給'].map(h => c(h, S.hdr)));
+
+    // 日別データ
     buildDayRows().forEach(({ day, dow, detail }) => {
       const isSun = dow === 0, isSat = dow === 6, hasWork = !!detail;
-      const bg = isSun ? 'FFFCE4EC' : isSat ? 'FFE3F2FD' : hasWork ? 'FFFFFFFF' : 'FFF5F5F5';
-      const dowColor = isSun ? 'FFCC0000' : isSat ? 'FF1565C0' : 'FF333333';
+      const bg = isSun ? 'FCE4EC' : isSat ? 'E3F2FD' : hasWork ? 'FFFFFF' : 'F8F8F8';
+      const dowRgb = isSun ? 'CC0000' : isSat ? '1565C0' : '333333';
+      const dayS = S.dayBase(bg, dowRgb, hasWork, 'center');
+      const numS = S.dayBase(bg, hasWork ? 'C67B00' : '999999', hasWork, 'right');
+      const txtS = S.dayBase(bg, '333333', false, 'center');
+      const wrkS = S.dayBase(bg, '222222', hasWork, 'right');
 
-      const row = ws.addRow([
-        day, DAY_JP[dow],
-        detail?.clock_in ?? '', detail?.clock_out ?? '',
-        detail ? toHM(detail.work_minutes) : '',
-        detail && detail.night_minutes > 0 ? toHM(detail.night_minutes) : '',
-        detail && detail.overtime_minutes > 0 ? toHM(detail.overtime_minutes) : '',
-        detail ? detail.daily_total : '',
+      rows.push([
+        c(day, dayS),
+        c(DAY_JP[dow], dayS),
+        c(detail?.clock_in ?? '', txtS),
+        c(detail?.clock_out ?? '', txtS),
+        c(detail ? toHM(detail.work_minutes) : '', wrkS),
+        c(detail && detail.night_minutes > 0 ? toHM(detail.night_minutes) : '', S.dayBase(bg, '1565C0', false, 'right')),
+        c(detail && detail.overtime_minutes > 0 ? toHM(detail.overtime_minutes) : '', S.dayBase(bg, 'E65100', false, 'right')),
+        detail ? n(detail.daily_total, { ...numS, numFmt: '#,##0' }) : c('', numS),
       ]);
-      row.height = 17;
-
-      row.eachCell({ includeEmpty: true }, (cell, col) => {
-        cell.fill = fill(bg);
-        cell.border = border();
-        cell.alignment = col <= 4 ? center : right;
-      });
-      row.getCell(1).font = { bold: hasWork, color: { argb: dowColor } };
-      row.getCell(2).font = { bold: hasWork, color: { argb: dowColor } };
-      if (hasWork && detail) {
-        row.getCell(8).numFmt = '#,##0';
-        row.getCell(8).font = { bold: true, color: { argb: 'FFC67B00' } };
-        row.getCell(5).font = { bold: true };
-      }
     });
 
-    // ── 合計行 ──
-    ws.addRow([]); // 空行
-    const tRow = ws.addRow([
-      `出勤 ${personDetail.work_days}日`, '', '', '合計',
-      toHM(personDetail.total_work_minutes),
-      toHM(personDetail.total_night_minutes),
-      toHM(personDetail.total_overtime_minutes),
-      personDetail.total_wage,
+    // 空行
+    rows.push(Array(8).fill(c('', {})));
+
+    // 合計行
+    const totS = { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '263238' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' } } };
+    const totR = { ...totS, alignment: { horizontal: 'right', vertical: 'center' } };
+    rows.push([
+      c(`出勤 ${personDetail.work_days}日`, totS), E(totS), E(totS),
+      c('合計', totS),
+      c(toHM(personDetail.total_work_minutes), totR),
+      c(toHM(personDetail.total_night_minutes), totR),
+      c(toHM(personDetail.total_overtime_minutes), totR),
+      n(personDetail.total_wage, { ...totR, numFmt: '#,##0', font: { bold: true, sz: 11, color: { rgb: 'FFCC00' } } }),
     ]);
-    ws.mergeCells(`A${tRow.number}:C${tRow.number}`);
-    tRow.height = 22;
-    tRow.eachCell({ includeEmpty: true }, (cell, col) => {
-      cell.fill = fill('FF263238');
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.border = border(medium, medium);
-      cell.alignment = col <= 4 ? center : right;
-      if (col === 8) { cell.numFmt = '#,##0'; cell.font = { bold: true, color: { argb: 'FFFFCC00' } }; }
-    });
 
-    // ── 給与サマリー ──
-    ws.addRow([]);
-    const payLabels = ['基本給', '深夜手当', '残業手当', 'ドリンクバック', '合計支給額'];
-    const payValues = [
-      personDetail.base_pay, personDetail.night_premium,
-      personDetail.overtime_premium, personDetail.drink_back_total, personDetail.total_wage,
+    // 空行
+    rows.push(Array(8).fill(c('', {})));
+
+    // 給与ヘッダー
+    const payHdrS = { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '546E7A' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } } };
+    rows.push([
+      c('基本給', payHdrS), c('深夜手当', payHdrS), c('残業手当', payHdrS),
+      c('ドリンクバック', payHdrS), c('合計支給額', payHdrS),
+      E({}), E({}), E({}),
+    ]);
+
+    // 給与値
+    rows.push([
+      n(personDetail.base_pay,          S.pay_num('FAFAFA', false)),
+      n(personDetail.night_premium,     S.pay_num('FAFAFA', false)),
+      n(personDetail.overtime_premium,  S.pay_num('FAFAFA', false)),
+      n(personDetail.drink_back_total,  S.pay_num('FAFAFA', false)),
+      n(personDetail.total_wage,        S.pay_num('FFF8E1', true)),
+      E({}), E({}), E({}),
+    ]);
+
+    // ── ワークシート生成 ──
+    const ws = XS.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 4 }, { wch: 4 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 13 }];
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },  // タイトル
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },  // 年月
+      { s: { r: 1, c: 6 }, e: { r: 1, c: 7 } },  // 氏名値
     ];
-    const lRow = ws.addRow([...payLabels, '', '', '']);
-    lRow.height = 21;
-    payLabels.forEach((_, i) => {
-      const cell = lRow.getCell(i + 1);
-      cell.fill = fill('FF546E7A');
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.alignment = center;
-      cell.border = border(medium, medium);
-    });
+    ws['!rows'] = [{ hpt: 32 }, { hpt: 22 }, { hpt: 6 }, { hpt: 20 }];
 
-    const vRow = ws.addRow([...payValues, '', '', '']);
-    vRow.height = 24;
-    payValues.forEach((v, i) => {
-      const cell = vRow.getCell(i + 1);
-      cell.value = v;
-      cell.numFmt = '¥#,##0';
-      const isTotal = i === 4;
-      cell.fill = fill(isTotal ? 'FFFFF2CC' : 'FFFAFAFA');
-      cell.font = { bold: isTotal, size: isTotal ? 12 : 10, color: { argb: isTotal ? 'FFC67B00' : 'FF333333' } };
-      cell.alignment = right;
-      cell.border = border(thin, medium);
-    });
-
-    // ── ダウンロード ──
-    const buf = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `勤務時間表_${personDetail.staff_name}_${year}${String(month).padStart(2, '0')}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const wb = XS.utils.book_new();
+    XS.utils.book_append_sheet(wb, ws, `${year}年${month}月`);
+    XS.writeFile(wb, `勤務時間表_${personDetail.staff_name}_${year}${String(month).padStart(2, '0')}.xlsx`);
   };
 
   const tabLabels: { key: 'today' | 'summary' | 'detail' | 'person'; label: string }[] = [
