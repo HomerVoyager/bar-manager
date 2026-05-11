@@ -40,8 +40,8 @@ def get_daily_sales(
         BarSession.status == "closed"
     ).all()
 
-    total_sales = sum(s.total for s in sessions)
-    total_guests = sum(s.guest_count for s in sessions)
+    total_sales = sum(s.total or 0 for s in sessions)
+    total_guests = sum(s.guest_count or 0 for s in sessions)
 
     session_ids = [s.id for s in sessions]
     product_breakdown = []
@@ -553,7 +553,7 @@ def get_product_margins(
         })
 
     # 粗利額の高い順にソート
-    products_data.sort(key=lambda x: x["gross_profit"], reverse=True)
+    products_data.sort(key=lambda x: x["margin"], reverse=True)
 
     return {
         "date_from": date_from.isoformat(),
