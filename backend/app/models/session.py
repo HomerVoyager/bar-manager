@@ -58,8 +58,15 @@ class Session(Base):
 
     # リレーションシップ
     table = relationship("Table", back_populates="sessions")
-    staff = relationship("Staff", foreign_keys=[staff_id], back_populates="sessions")
-    yobiback_staff = relationship("Staff", foreign_keys=[yobiback_staff_id])
+    staff = relationship(
+        "Staff",
+        foreign_keys="[Session.staff_id]",
+        back_populates="sessions",
+    )
+    yobiback_staff = relationship(
+        "Staff",
+        foreign_keys="[Session.yobiback_staff_id]",
+    )
     order_items = relationship("OrderItem", back_populates="session", cascade="all, delete-orphan")
 
     def __repr__(self):
