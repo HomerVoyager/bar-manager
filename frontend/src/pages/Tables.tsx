@@ -52,8 +52,8 @@ import type {
 const formatYen = (amount: number): string => `¥${amount.toLocaleString('ja-JP')}`;
 
 // 経過時間を表示形式に変換
-const formatElapsed = (startedAt: string): string => {
-  const minutes = differenceInMinutes(new Date(), new Date(startedAt));
+const formatElapsed = (startedAt: string, now: Date): string => {
+  const minutes = differenceInMinutes(now, new Date(startedAt));
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h > 0) return `${h}時間${m}分`;
@@ -83,7 +83,14 @@ const Tables: React.FC = () => {
   const [isEditingNomiHodai, setIsEditingNomiHodai] = useState(false);
   const [editTimeLimitMinutes, setEditTimeLimitMinutes] = useState(0);
   const [editExtensionFee, setEditExtensionFee] = useState(0);
+  const [now, setNow] = useState(new Date());
   const queryClient = useQueryClient();
+
+  // 残り時間表示を1分ごとに更新
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // WebSocketリアルタイム更新
   const { lastMessage, isConnected } = useWebSocket();
@@ -429,7 +436,7 @@ const Tables: React.FC = () => {
   const loAlerts = tables.filter((t) => {
     const s = t.current_session;
     if (!s || s.plan_type !== 'nomi_hodai' || !s.time_limit_minutes) return false;
-    const remaining = s.time_limit_minutes - differenceInMinutes(new Date(), new Date(s.started_at));
+    const remaining = s.time_limit_minutes - differenceInMinutes(now, new Date(s.started_at));
     return remaining <= 10;
   });
 
@@ -477,7 +484,7 @@ const Tables: React.FC = () => {
             <p className="text-red-400 text-xs mt-0.5">
               {loAlerts.map((t) => {
                 const s = t.current_session!;
-                const remaining = s.time_limit_minutes! - differenceInMinutes(new Date(), new Date(s.started_at));
+                const remaining = s.time_limit_minutes! - differenceInMinutes(now, new Date(s.started_at));
                 return `${t.name}（残り${remaining <= 0 ? '時間切れ' : `${remaining}分`}）`;
               }).join(' / ')}
             </p>
@@ -562,10 +569,10 @@ const Tables: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1 text-xs text-gray-400">
                     <Clock className="w-3 h-3" />
-                    <span>{formatElapsed(table.current_session.started_at)}</span>
+                    <span>{formatElapsed(table.current_session.started_at, now)}</span>
                   </div>
                   {table.current_session.plan_type === 'nomi_hodai' && table.current_session.time_limit_minutes && (() => {
-                    const remaining = table.current_session.time_limit_minutes! - differenceInMinutes(new Date(), new Date(table.current_session!.started_at));
+                    const remaining = table.current_session.time_limit_minutes! - differenceInMinutes(now, new Date(table.current_session!.started_at));
                     return (
                       <div className={`text-xs font-bold ${remaining <= 0 ? 'text-red-400 animate-pulse' : remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>
                         {remaining <= 0 ? '🍺 時間切れ' : `🍺 残り${remaining}分`}
@@ -876,7 +883,7 @@ const Tables: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-indigo-300 font-medium">🍺 飲み放題</span>
                       {selectedTable.current_session.time_limit_minutes && (() => {
-                        const elapsed = differenceInMinutes(new Date(), new Date(selectedTable.current_session!.started_at));
+                        const elapsed = differenceInMinutes(now, new Date(selectedTable.current_session!.started_at));
                         const remaining = selectedTable.current_session.time_limit_minutes - elapsed;
                         return remaining > 0
                           ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
@@ -928,7 +935,7 @@ const Tables: React.FC = () => {
               <div className="bg-gray-900 rounded-lg p-3 text-center">
                 <p className="text-gray-400 text-xs mb-1">経過時間</p>
                 <p className="text-white font-semibold">
-                  {formatElapsed(selectedTable.current_session.started_at)}
+                  {formatElapsed(selectedTable.current_session.started_at, now)}
                 </p>
               </div>
               <div className="bg-gray-900 rounded-lg p-3 text-center">
