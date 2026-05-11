@@ -61,16 +61,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, currentUser })
         relative
       `}
     >
-      {/* バーのロゴとタイトル */}
-      <div className="flex items-center px-4 py-5 border-b border-gray-700 min-h-[65px]">
-        <span className="text-2xl flex-shrink-0" aria-hidden="true">🍺</span>
-        {!isCollapsed && (
-          <div className="ml-3 overflow-hidden">
-            <span className="text-amber-400 font-bold text-sm whitespace-nowrap">
-              Bar Manager
-            </span>
-            <p className="text-gray-500 text-xs whitespace-nowrap">バー管理システム</p>
-          </div>
+      {/* ロゴ */}
+      <div className="flex items-center px-3 py-3 border-b border-gray-700 min-h-[65px]">
+        {isCollapsed ? (
+          <img src="/favicon.png" alt="Bar Moon" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+        ) : (
+          <img src="/logo.jpg" alt="Bar Moon" className="h-10 w-auto rounded-lg object-contain" />
         )}
       </div>
 
