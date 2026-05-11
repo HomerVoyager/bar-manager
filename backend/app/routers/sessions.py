@@ -359,6 +359,33 @@ class ExtendRequest(BaseModel):
     fee_per_person: int = 0
 
 
+class SessionUpdate(BaseModel):
+    time_limit_minutes: int | None = None
+    extension_fee: int | None = None
+
+
+@router.patch("/{session_id}", response_model=dict, summary="セッション情報修正")
+async def update_session(
+    session_id: int,
+    body: SessionUpdate,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_user)
+):
+    """time_limit_minutes / extension_fee を直接修正する（操作ミス訂正用）"""
+    session = db.query(BarSession).filter(BarSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"セッションID {session_id} が見つかりません")
+    if session.status != "open":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="精算済みのセッションは変更できません")
+
+    if body.time_limit_minutes is not None:
+        session.time_limit_minutes = body.time_limit_minutes
+    if body.extension_fee is not None:
+        session.extension_fee = body.extension_fee
+    db.commit()
+    return {"session_id": session.id, "time_limit_minutes": session.time_limit_minutes, "extension_fee": session.extension_fee}
+
+
 @router.patch("/{session_id}/extend", response_model=dict, summary="飲み放題延長")
 async def extend_session(
     session_id: int,

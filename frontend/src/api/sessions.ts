@@ -45,6 +45,15 @@ export const fetchSessionItems = async (sessionId: number): Promise<OrderItem[]>
   return response.data;
 };
 
+// セッション情報を直接修正（操作ミス訂正用）
+export const updateSession = async (
+  sessionId: number,
+  data: { time_limit_minutes?: number; extension_fee?: number }
+): Promise<{ session_id: number; time_limit_minutes: number; extension_fee: number }> => {
+  const response = await apiClient.patch(`/sessions/${sessionId}`, data);
+  return response.data;
+};
+
 // 飲み放題を30分延長（feePerPerson: 延長料金/人）
 export const extendSession = async (
   sessionId: number,

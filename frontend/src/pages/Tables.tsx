@@ -17,6 +17,7 @@ import {
   Pencil,
   Trash2,
   Settings,
+  Check,
 } from 'lucide-react';
 import { fetchTables, createTable, updateTable, deleteTable } from '../api/tables';
 import { fetchProducts } from '../api/products';
@@ -28,6 +29,7 @@ import {
   addOrderItem,
   removeOrderItem,
   extendSession,
+  updateSession,
 } from '../api/sessions';
 import { fetchStaffDrinks, createStaffDrink, deleteStaffDrink } from '../api/staff_drinks';
 import Modal from '../components/Modal';
@@ -78,6 +80,9 @@ const Tables: React.FC = () => {
   const [staffDrinkForm, setStaffDrinkForm] = useState({ staff_id: '', product_id: '', qty: 1 });
   const [setFeeEnabled, setSetFeeEnabled] = useState(true);
   const [extensionFeePerPerson, setExtensionFeePerPerson] = useState(500);
+  const [isEditingNomiHodai, setIsEditingNomiHodai] = useState(false);
+  const [editTimeLimitMinutes, setEditTimeLimitMinutes] = useState(0);
+  const [editExtensionFee, setEditExtensionFee] = useState(0);
   const queryClient = useQueryClient();
 
   // WebSocketリアルタイム更新
@@ -310,6 +315,26 @@ const Tables: React.FC = () => {
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } };
       alert(e?.response?.data?.detail ?? '延長に失敗しました。');
+    },
+  });
+
+  // セッション情報修正ミューテーション
+  const updateSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: { time_limit_minutes?: number; extension_fee?: number } }) =>
+      updateSession(sessionId, data),
+    onSuccess: () => {
+      setIsEditingNomiHodai(false);
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      refetch().then((result) => {
+        if (result.data && selectedTable) {
+          const updated = result.data.find((t) => t.id === selectedTable.id);
+          if (updated) setSelectedTable(updated);
+        }
+      });
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? '修正に失敗しました。');
     },
   });
 
@@ -757,7 +782,7 @@ const Tables: React.FC = () => {
       {isSessionDetailModal && selectedTable?.current_session && (
         <Modal
           title={`${selectedTable.name} - セッション詳細`}
-          onClose={() => { setIsSessionDetailModal(false); setSelectedTable(null); }}
+          onClose={() => { setIsSessionDetailModal(false); setSelectedTable(null); setIsEditingNomiHodai(false); }}
           size="large"
           footer={
             <div className="flex flex-wrap items-center justify-between gap-3 w-full">
@@ -799,37 +824,100 @@ const Tables: React.FC = () => {
           <div className="space-y-5">
             {/* セッション情報 */}
             {selectedTable.current_session.plan_type === 'nomi_hodai' && (
-              <div className="flex items-center justify-between bg-indigo-900/30 border border-indigo-700 rounded-lg px-4 py-2 text-sm">
-                <span className="text-indigo-300 font-medium">🍺 飲み放題</span>
-                <div className="flex items-center gap-3">
-                  {selectedTable.current_session.time_limit_minutes && (() => {
-                    const elapsed = differenceInMinutes(new Date(), new Date(selectedTable.current_session!.started_at));
-                    const remaining = selectedTable.current_session.time_limit_minutes - elapsed;
-                    return remaining > 0
-                      ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
-                      : <span className="text-red-400 font-bold animate-pulse">時間終了</span>;
-                  })()}
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-indigo-400 text-xs">¥</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={extensionFeePerPerson}
-                      onChange={(e) => setExtensionFeePerPerson(Number(e.target.value))}
-                      className="w-20 px-2 py-1 bg-indigo-950 border border-indigo-700 text-indigo-100 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      title="延長料金（1人あたり）"
-                    />
-                    <span className="text-indigo-400 text-xs">/人</span>
-                    <button
-                      onClick={() => extendSessionMutation.mutate({ sessionId: selectedTable.current_session!.id, feePerPerson: extensionFeePerPerson })}
-                      disabled={extendSessionMutation.isPending}
-                      className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-600 text-indigo-200 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
-                    >
-                      +30分延長
-                    </button>
+              <div className="bg-indigo-900/30 border border-indigo-700 rounded-lg px-4 py-2 text-sm space-y-2">
+                {/* 通常表示 or 編集モード */}
+                {isEditingNomiHodai ? (
+                  <div className="space-y-2">
+                    <p className="text-indigo-300 text-xs font-medium">飲み放題 — 直接修正</p>
+                    <div className="flex flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-indigo-400 text-xs">制限時間</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="30"
+                          value={editTimeLimitMinutes}
+                          onChange={(e) => setEditTimeLimitMinutes(Number(e.target.value))}
+                          className="w-20 px-2 py-1 bg-indigo-950 border border-indigo-700 text-indigo-100 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <span className="text-indigo-400 text-xs">分</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-indigo-400 text-xs">延長料金計</span>
+                        <span className="text-indigo-400 text-xs">¥</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={editExtensionFee}
+                          onChange={(e) => setEditExtensionFee(Number(e.target.value))}
+                          className="w-24 px-2 py-1 bg-indigo-950 border border-indigo-700 text-indigo-100 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateSessionMutation.mutate({ sessionId: selectedTable.current_session!.id, data: { time_limit_minutes: editTimeLimitMinutes, extension_fee: editExtensionFee } })}
+                        disabled={updateSessionMutation.isPending}
+                        className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-medium"
+                      >
+                        <Check className="w-3 h-3" /> 保存
+                      </button>
+                      <button
+                        onClick={() => setIsEditingNomiHodai(false)}
+                        className="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-indigo-300 font-medium">🍺 飲み放題</span>
+                      {selectedTable.current_session.time_limit_minutes && (() => {
+                        const elapsed = differenceInMinutes(new Date(), new Date(selectedTable.current_session!.started_at));
+                        const remaining = selectedTable.current_session.time_limit_minutes - elapsed;
+                        return remaining > 0
+                          ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
+                          : <span className="text-red-400 font-bold animate-pulse">時間終了</span>;
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-indigo-400 text-xs">¥</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={extensionFeePerPerson}
+                          onChange={(e) => setExtensionFeePerPerson(Number(e.target.value))}
+                          className="w-16 px-2 py-1 bg-indigo-950 border border-indigo-700 text-indigo-100 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          title="延長料金（1人あたり）"
+                        />
+                        <span className="text-indigo-400 text-xs">/人</span>
+                        <button
+                          onClick={() => extendSessionMutation.mutate({ sessionId: selectedTable.current_session!.id, feePerPerson: extensionFeePerPerson })}
+                          disabled={extendSessionMutation.isPending}
+                          className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-600 text-indigo-200 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+                        >
+                          +30分延長
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEditTimeLimitMinutes(selectedTable.current_session!.time_limit_minutes ?? 0);
+                          setEditExtensionFee(selectedTable.current_session!.extension_fee ?? 0);
+                          setIsEditingNomiHodai(true);
+                        }}
+                        className="p-1 text-indigo-500 hover:text-indigo-300 transition-colors"
+                        title="修正"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <div className="grid grid-cols-3 gap-3 text-sm">

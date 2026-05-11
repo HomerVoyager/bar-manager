@@ -51,7 +51,7 @@ def list_tables(
             session_data = {
                 "id": active_session.id,
                 "guest_count": active_session.guest_count,
-                "started_at": active_session.started_at.isoformat(),
+                "started_at": active_session.started_at.isoformat() + "Z",
                 "total": live_total,
                 "status": active_session.status,
                 "plan_type": active_session.plan_type,
