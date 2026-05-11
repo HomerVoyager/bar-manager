@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.deps import get_current_user, get_current_manager_or_above
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse
 
@@ -17,7 +17,7 @@ def list_customers(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_manager_or_above),
 ):
     q = db.query(Customer)
     if search:
@@ -34,7 +34,7 @@ def list_customers(
 def create_customer(
     body: CustomerCreate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_manager_or_above),
 ):
     customer = Customer(**body.model_dump())
     db.add(customer)
@@ -47,7 +47,7 @@ def create_customer(
 def get_customer(
     customer_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_manager_or_above),
 ):
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
@@ -60,7 +60,7 @@ def update_customer(
     customer_id: int,
     body: CustomerUpdate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_manager_or_above),
 ):
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
@@ -76,7 +76,7 @@ def update_customer(
 def delete_customer(
     customer_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_manager_or_above),
 ):
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
@@ -90,7 +90,7 @@ def delete_customer(
 def record_visit(
     customer_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_manager_or_above),
 ):
     from datetime import date
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
