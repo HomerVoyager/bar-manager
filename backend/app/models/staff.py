@@ -43,7 +43,7 @@ class Staff(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     # リレーションシップ
-    sessions = relationship("Session", back_populates="staff")
+    sessions = relationship("Session", foreign_keys="[Session.staff_id]", back_populates="staff")
     stock_logs = relationship("StockLog", back_populates="staff")
     attendances = relationship("Attendance", back_populates="staff")
     shifts = relationship("Shift", back_populates="staff")
