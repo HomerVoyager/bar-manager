@@ -510,87 +510,94 @@ const Tables: React.FC = () => {
 
       {/* テーブルグリッド */}
       {tables.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {tables.map((table) => (
-            <button
-              key={table.id}
-              onClick={() => handleTableClick(table)}
-              className={`
-                rounded-xl border-2 p-4 text-left transition-all
-                ${tableCardStyles[table.status]}
-                ${table.status === 'empty' ? 'cursor-pointer' : 'cursor-pointer'}
-              `}
-            >
-              {/* テーブル名 */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-white font-semibold text-sm">{table.name}</span>
-                <div className="flex items-center gap-1">
-                  {table.status === 'occupied' && (
-                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                  )}
-                  {table.status === 'empty' && (
-                    <>
-                      <button
-                        onClick={(e) => openEditTable(table, e)}
-                        className="p-1 text-gray-500 hover:text-indigo-400 rounded transition-colors"
-                        title="編集"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`「${table.name}」を削除しますか？`)) {
-                            deleteTableMutation.mutate(table.id);
-                          }
-                        }}
-                        className="p-1 text-gray-500 hover:text-red-400 rounded transition-colors"
-                        title="削除"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </>
-                  )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {tables.map((table) => {
+            const session = table.current_session;
+            const remaining = session?.plan_type === 'nomi_hodai' && session.time_limit_minutes
+              ? session.time_limit_minutes - differenceInMinutes(now, new Date(session.started_at))
+              : null;
+            const isTimeWarning = remaining !== null && remaining <= 10;
+
+            return (
+              <button
+                key={table.id}
+                onClick={() => handleTableClick(table)}
+                className={`rounded-2xl border-2 p-4 text-left transition-all w-full ${tableCardStyles[table.status]}`}
+              >
+                {/* ヘッダー: テーブル名 + 操作ボタン */}
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="text-white font-bold text-base leading-tight">{table.name}</p>
+                    <p className="text-gray-600 text-xs mt-0.5">最大{table.capacity}名</p>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    {table.status === 'occupied' && (
+                      <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                    )}
+                    {table.status === 'empty' && (
+                      <>
+                        <button onClick={(e) => openEditTable(table, e)} className="p-1 text-gray-600 hover:text-indigo-400 rounded transition-colors">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`「${table.name}」を削除しますか？`)) deleteTableMutation.mutate(table.id); }}
+                          className="p-1 text-gray-600 hover:text-red-400 rounded transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* ステータスバッジ */}
-              <AlertBadge
-                label={table.status === 'empty' ? '空き' : table.status === 'occupied' ? '使用中' : '予約中'}
-                variant={table.status}
-              />
+                {/* 空き */}
+                {table.status === 'empty' && (
+                  <div className="flex items-center justify-center py-5">
+                    <span className="text-green-400 text-sm font-semibold tracking-wide">OPEN</span>
+                  </div>
+                )}
 
-              {/* 使用中の場合: 客数と経過時間 */}
-              {table.status === 'occupied' && table.current_session && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-gray-400">
-                    <Users className="w-3 h-3" />
-                    <span>{table.current_session.guest_count}名</span>
+                {/* 予約中 */}
+                {table.status === 'reserved' && (
+                  <div className="flex items-center justify-center py-5">
+                    <span className="text-yellow-400 text-sm font-semibold">予約中</span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-gray-400">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatElapsed(table.current_session.started_at, now)}</span>
-                  </div>
-                  {table.current_session.plan_type === 'nomi_hodai' && table.current_session.time_limit_minutes && (() => {
-                    const remaining = table.current_session.time_limit_minutes! - differenceInMinutes(now, new Date(table.current_session!.started_at));
-                    return (
-                      <div className={`text-xs font-bold ${remaining <= 0 ? 'text-red-400 animate-pulse' : remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>
-                        {remaining <= 0 ? '🍺 時間切れ' : `🍺 残り${remaining}分`}
+                )}
+
+                {/* 使用中 */}
+                {table.status === 'occupied' && session && (
+                  <div className="space-y-3">
+                    {/* 経過時間（大きく） */}
+                    <div className="bg-black/20 rounded-xl px-3 py-2">
+                      <p className="text-gray-500 text-xs mb-0.5">経過</p>
+                      <p className="text-white text-2xl font-bold leading-none tracking-tight">
+                        {formatElapsed(session.started_at, now)}
+                      </p>
+                    </div>
+
+                    {/* 飲み放題残り時間 */}
+                    {remaining !== null && (
+                      <div className={`rounded-xl px-3 py-2 ${isTimeWarning ? 'bg-red-900/50 border border-red-600' : 'bg-indigo-900/30'}`}>
+                        <p className={`text-xs mb-0.5 ${isTimeWarning ? 'text-red-400' : 'text-indigo-400'}`}>残り時間</p>
+                        <p className={`text-2xl font-bold leading-none ${isTimeWarning ? 'text-red-300 animate-pulse' : 'text-indigo-200'}`}>
+                          {remaining <= 0 ? '時間切れ' : `${remaining}分`}
+                        </p>
                       </div>
-                    );
-                  })()}
-                  <div className="text-xs text-amber-400 font-medium">
-                    {formatYen(table.current_session.total)}
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {/* 定員表示 */}
-              <div className="mt-2 text-xs text-gray-600">
-                最大{table.capacity}名
-              </div>
-            </button>
-          ))}
+                    {/* 客数 + 合計 */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-1 text-gray-300">
+                        <Users className="w-4 h-4 text-gray-500" />
+                        <span className="font-semibold text-base">{session.guest_count}名</span>
+                      </div>
+                      <span className="text-amber-400 font-bold text-lg">{formatYen(session.total)}</span>
+                    </div>
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-16 text-gray-500">
