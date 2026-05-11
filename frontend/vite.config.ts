@@ -7,9 +7,16 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // パスエイリアスの設定
       '@': path.resolve(__dirname, './src'),
+      // ExcelJS が要求する Node.js polyfill
+      buffer: 'buffer/',
     },
+  },
+  optimizeDeps: {
+    include: ['buffer'],
+  },
+  define: {
+    global: 'globalThis',
   },
   server: {
     port: 3000,
