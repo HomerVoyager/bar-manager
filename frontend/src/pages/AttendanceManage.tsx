@@ -525,7 +525,8 @@ const AttendanceManagePage: React.FC = () => {
                       <th className="px-3 py-2 text-right">勤務時間</th>
                       <th className="px-3 py-2 text-right">深夜</th>
                       <th className="px-3 py-2 text-right">残業</th>
-                      <th className="px-3 py-2 text-right">バック</th>
+                      <th className="px-3 py-2 text-right">Dバック</th>
+                      <th className="px-3 py-2 text-right">呼びバック</th>
                       <th className="px-3 py-2 text-right">日給</th>
                       <th className="px-3 py-2 text-center w-8"></th>
                     </tr>
@@ -590,8 +591,11 @@ const AttendanceManagePage: React.FC = () => {
                           <td className="px-3 py-1.5 text-right text-yellow-400">
                             {hasWork && detail.overtime_minutes > 0 ? minutesToHM(detail.overtime_minutes) : '-'}
                           </td>
-                          <td className="px-3 py-1.5 text-right text-purple-400 text-xs">
+                          <td className="px-3 py-1.5 text-right text-indigo-400 text-xs">
                             {hasWork && detail.drink_back > 0 ? yen(detail.drink_back) : '-'}
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-purple-400 text-xs">
+                            {hasWork && (detail as any).yobiback > 0 ? yen((detail as any).yobiback) : '-'}
                           </td>
                           <td className="px-3 py-1.5 text-right text-amber-400">
                             {hasWork ? yen(detail.daily_total) : '-'}
@@ -628,7 +632,8 @@ const AttendanceManagePage: React.FC = () => {
                       <td className="px-3 py-2 text-right">{minutesToHM(personDetail.total_work_minutes)}</td>
                       <td className="px-3 py-2 text-right text-indigo-300">{minutesToHM(personDetail.total_night_minutes)}</td>
                       <td className="px-3 py-2 text-right text-yellow-300">{minutesToHM(personDetail.total_overtime_minutes)}</td>
-                      <td className="px-3 py-2 text-right text-purple-300">{yen(personDetail.drink_back_total)}</td>
+                      <td className="px-3 py-2 text-right text-indigo-300">{yen(personDetail.drink_back_total)}</td>
+                      <td className="px-3 py-2 text-right text-purple-300">{yen((personDetail as any).yobiback_total ?? 0)}</td>
                       <td className="px-3 py-2 text-right text-amber-400">{yen(personDetail.total_wage)}</td>
                       <td></td>
                     </tr>
@@ -637,12 +642,13 @@ const AttendanceManagePage: React.FC = () => {
               </div>
 
               {/* 給与サマリー */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
                   { label: '基本給', value: personDetail.base_pay, color: 'text-white' },
                   { label: '深夜手当', value: personDetail.night_premium, color: 'text-indigo-400' },
                   { label: '残業手当', value: personDetail.overtime_premium, color: 'text-yellow-400' },
-                  { label: 'ドリンクバック', value: personDetail.drink_back_total, color: 'text-purple-400' },
+                  { label: 'ドリンクバック', value: personDetail.drink_back_total, color: 'text-indigo-400' },
+                  { label: '呼びバック', value: (personDetail as any).yobiback_total ?? 0, color: 'text-purple-400' },
                   { label: '合計支給額', value: personDetail.total_wage, color: 'text-amber-400' },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="bg-gray-800 rounded-xl border border-gray-700 p-4 text-center">

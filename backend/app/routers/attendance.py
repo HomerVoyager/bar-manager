@@ -347,6 +347,7 @@ def get_payslip(
         night_premium=wage_data.night_premium,
         overtime_premium=wage_data.overtime_premium,
         drink_back_total=wage_data.drink_back_total,
+        yobiback_total=wage_data.yobiback_total,
         total_wage=wage_data.total_wage,
     )
 

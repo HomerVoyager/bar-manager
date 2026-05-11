@@ -57,6 +57,22 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     return Token(access_token=access_token, token_type="bearer", user=staff)
 
 
+@router.post("/refresh", response_model=Token, summary="トークン更新")
+def refresh_token(current_user: Staff = Depends(get_current_user)):
+    """
+    現在有効なトークンを使って新しいトークンを発行する
+    期限切れ前に呼ぶことで自動的にセッションを延長する
+    """
+    access_token = create_access_token(
+        data={
+            "sub": str(current_user.id),
+            "name": current_user.name,
+            "role": current_user.role,
+        }
+    )
+    return Token(access_token=access_token, token_type="bearer", user=current_user)
+
+
 @router.get("/me", response_model=StaffResponse, summary="現在のユーザー情報取得")
 def get_me(current_user: Staff = Depends(get_current_user)):
     """

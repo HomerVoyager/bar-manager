@@ -176,13 +176,10 @@ const Dashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  tick={{ fill: '#9ca3af', fontSize: 11 }}
                   tickLine={false}
-                  // 日付から日のみ表示
-                  tickFormatter={(value: string) => {
-                    const d = new Date(value);
-                    return `${d.getDate()}日`;
-                  }}
+                  interval={4}
+                  tickFormatter={(value: string) => `${value}日`}
                 />
                 <YAxis
                   tick={{ fill: '#9ca3af', fontSize: 12 }}
@@ -197,16 +194,11 @@ const Dashboard: React.FC = () => {
                     color: '#fff',
                   }}
                   formatter={(value: number) => [formatYen(value), '']}
-                  labelFormatter={(label: string) => {
-                    const d = new Date(label);
-                    return `${d.getMonth() + 1}月${d.getDate()}日`;
-                  }}
+                  labelFormatter={(label: string) => `${label}日`}
                 />
                 <Legend
                   formatter={(value: string) => (
-                    <span className="text-gray-300 text-sm">
-                      {value === 'this_month' ? '今月' : '先月'}
-                    </span>
+                    <span className="text-gray-300 text-sm">{value}</span>
                   )}
                 />
                 <Line

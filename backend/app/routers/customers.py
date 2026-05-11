@@ -8,7 +8,7 @@ from app.core.deps import get_current_manager_or_above
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse
 
-router = APIRouter(prefix="/customers", tags=["customers"])
+router = APIRouter(tags=["customers"])
 
 
 @router.get("/", response_model=List[CustomerResponse])

@@ -86,11 +86,12 @@ const Payslip: React.FC = () => {
         <div className="px-8 py-6 space-y-3">
           <h2 className="text-gray-300 text-sm font-semibold mb-4">支給内訳</h2>
           {[
-            { label: '基本給', value: (detail as any).base_pay, color: 'text-white' },
-            { label: '深夜割増手当', value: (detail as any).night_premium, color: 'text-blue-400' },
-            { label: '残業割増手当', value: (detail as any).overtime_premium, color: 'text-orange-400' },
-            { label: 'ドリンクバック', value: detail.drink_back_total, color: 'text-indigo-400' },
-          ].map(({ label, value, color }) => (
+            { label: '基本給', value: (detail as any).base_pay, color: 'text-white', always: true },
+            { label: '深夜割増手当', value: (detail as any).night_premium, color: 'text-blue-400', always: false },
+            { label: '残業割増手当', value: (detail as any).overtime_premium, color: 'text-orange-400', always: false },
+            { label: 'ドリンクバック', value: detail.drink_back_total, color: 'text-indigo-400', always: false },
+            { label: '呼びバック', value: (detail as any).yobiback_total ?? 0, color: 'text-purple-400', always: false },
+          ].filter(({ value, always }) => always || value > 0).map(({ label, value, color }) => (
             <div key={label} className="flex items-center justify-between py-2 border-b border-gray-700/50">
               <span className="text-gray-400 text-sm">{label}</span>
               <span className={`font-medium text-sm ${color}`}>{yen(value)}</span>

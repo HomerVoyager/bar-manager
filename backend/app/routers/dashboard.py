@@ -110,19 +110,18 @@ def get_dashboard(
         }
 
         if active_session:
-            table_data["session"] = {
+            table_data["current_session"] = {
                 "id": active_session.id,
                 "guest_count": active_session.guest_count,
                 "started_at": active_session.started_at.isoformat(),
-                # 現在の仮合計（精算前）
-                "current_total": db.query(
+                "total": db.query(
                     func.coalesce(func.sum(OrderItem.qty * OrderItem.unit_price), 0)
                 ).filter(
                     OrderItem.session_id == active_session.id
                 ).scalar(),
             }
         else:
-            table_data["session"] = None
+            table_data["current_session"] = None
 
         table_status.append(table_data)
 

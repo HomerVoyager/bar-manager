@@ -90,6 +90,7 @@ export interface DailyDetail {
   night_premium: number;
   overtime_premium: number;
   drink_back: number;
+  yobiback: number;
   daily_total: number;
   is_late?: boolean;
   is_early_leave?: boolean;

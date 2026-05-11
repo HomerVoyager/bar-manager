@@ -53,9 +53,13 @@ class Session(Base):
     # 延長料金累計（延長するたびに加算）
     extension_fee = Column(Integer, default=0, nullable=False)
 
+    # 呼びバック担当スタッフID（この卓を呼んだスタッフ。精算時に売上10%がバックに入る）
+    yobiback_staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True, index=True)
+
     # リレーションシップ
     table = relationship("Table", back_populates="sessions")
-    staff = relationship("Staff", back_populates="sessions")
+    staff = relationship("Staff", foreign_keys=[staff_id], back_populates="sessions")
+    yobiback_staff = relationship("Staff", foreign_keys=[yobiback_staff_id])
     order_items = relationship("OrderItem", back_populates="session", cascade="all, delete-orphan")
 
     def __repr__(self):

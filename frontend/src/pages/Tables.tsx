@@ -79,6 +79,8 @@ const Tables: React.FC = () => {
   const [splitCount, setSplitCount] = useState<number>(2);
   const [staffDrinkForm, setStaffDrinkForm] = useState({ staff_id: '', product_id: '', qty: 1 });
   const [setFeeEnabled, setSetFeeEnabled] = useState(true);
+  const [yobibackEnabled, setYobibackEnabled] = useState(false);
+  const [yobibackStaffId, setYobibackStaffId] = useState<number | null>(null);
   const [extensionFeePerPerson, setExtensionFeePerPerson] = useState(500);
   const [isEditingNomiHodai, setIsEditingNomiHodai] = useState(false);
   const [editTimeLimitMinutes, setEditTimeLimitMinutes] = useState(0);
@@ -250,6 +252,8 @@ const Tables: React.FC = () => {
       setSelectedTable(null);
       resetOpen();
       setSetFeeEnabled(true);
+      setYobibackEnabled(false);
+      setYobibackStaffId(null);
       refetch();
     },
     onError: (err: unknown) => {
@@ -405,6 +409,7 @@ const Tables: React.FC = () => {
       time_limit_minutes: data.plan_type === 'nomi_hodai' ? Number(data.time_limit_minutes) : undefined,
       set_fee: setFeeEnabled ? 1000 : 0,
       nomi_hodai_price: data.plan_type === 'nomi_hodai' ? Number(data.nomi_hodai_price) : 0,
+      yobiback_staff_id: yobibackEnabled && yobibackStaffId ? yobibackStaffId : undefined,
     });
   };
 
@@ -663,12 +668,12 @@ const Tables: React.FC = () => {
       {isOpenSessionModal && selectedTable && (
         <Modal
           title={`${selectedTable.name} - 開卓`}
-          onClose={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); setSetFeeEnabled(true); }}
+          onClose={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); setSetFeeEnabled(true); setYobibackEnabled(false); setYobibackStaffId(null); }}
           size="small"
           footer={
             <>
               <button
-                onClick={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); setSetFeeEnabled(true); }}
+                onClick={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); setSetFeeEnabled(true); setYobibackEnabled(false); setYobibackStaffId(null); }}
                 className="px-4 py-2 text-gray-400 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
               >
                 キャンセル
@@ -787,6 +792,31 @@ const Tables: React.FC = () => {
               </label>
               <span className={`text-sm font-semibold ${setFeeEnabled ? 'text-amber-400' : 'text-gray-600'}`}>¥1,000</span>
             </div>
+            )}
+            {/* 呼びバック */}
+            <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none" onClick={() => { setYobibackEnabled((v) => !v); setYobibackStaffId(null); }}>
+                <div className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${yobibackEnabled ? 'bg-purple-500' : 'bg-gray-600'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${yobibackEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
+                <span className="text-sm text-gray-300">呼びバック</span>
+              </label>
+              <span className={`text-xs ${yobibackEnabled ? 'text-purple-400' : 'text-gray-600'}`}>売上10%</span>
+            </div>
+            {yobibackEnabled && (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">呼んだスタッフ</label>
+                <select
+                  value={yobibackStaffId ?? ''}
+                  onChange={(e) => setYobibackStaffId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">選択してください</option>
+                  {staffList?.filter((s) => s.is_active).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
             )}
           </form>
         </Modal>

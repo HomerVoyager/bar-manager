@@ -90,6 +90,8 @@ class MonthlyWageResponse(BaseModel):
     total_wage: int
     # ドリンクバック合計
     drink_back_total: int = 0
+    # 呼びバック合計
+    yobiback_total: int = 0
     # 日次明細
     daily_details: List[dict]
 
@@ -110,4 +112,5 @@ class PayslipResponse(BaseModel):
     night_premium: int
     overtime_premium: int
     drink_back_total: int = 0
+    yobiback_total: int = 0
     total_wage: int

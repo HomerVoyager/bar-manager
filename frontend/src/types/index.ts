@@ -180,6 +180,7 @@ export interface OpenSessionForm {
   time_limit_minutes?: number;
   set_fee: number;
   nomi_hodai_price: number;
+  yobiback_staff_id?: number;
 }
 
 // 注文追加フォーム

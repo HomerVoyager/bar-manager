@@ -9,6 +9,8 @@ from app.models.order_item import OrderItem
 from app.models.stock_log import StockLog
 from app.models.attendance import Attendance
 from app.models.customer import Customer
+from app.models.shift import Shift
+from app.models.staff_drink import StaffDrink
 
 __all__ = [
     "Staff",
@@ -19,4 +21,6 @@ __all__ = [
     "StockLog",
     "Attendance",
     "Customer",
+    "Shift",
+    "StaffDrink",
 ]

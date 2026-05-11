@@ -8,6 +8,9 @@ ALTER TABLE sessions ADD COLUMN IF NOT EXISTS set_fee INTEGER NOT NULL DEFAULT 0
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS nomi_hodai_price INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS extension_fee INTEGER NOT NULL DEFAULT 0;
 
+-- ①b sessions テーブル: 呼びバック担当スタッフ
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS yobiback_staff_id INTEGER REFERENCES staff(id) ON DELETE SET NULL;
+
 -- ②  attendance テーブル: 欠勤・有給管理
 ALTER TABLE attendance ADD COLUMN IF NOT EXISTS absence_type VARCHAR(20);
 ALTER TABLE attendance ADD COLUMN IF NOT EXISTS absence_note VARCHAR(200);

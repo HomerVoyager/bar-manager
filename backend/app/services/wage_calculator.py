@@ -202,6 +202,20 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
         drink_back_by_date[d] = drink_back_by_date.get(d, 0) + drink.back_amount
     drink_back_total = sum(drink_back_by_date.values())
 
+    # 呼びバック（日別）を計算 - この月に精算された卓で yobiback_staff_id = このスタッフのセッション
+    yobiback_sessions = db.query(BarSession).filter(
+        BarSession.yobiback_staff_id == staff_id,
+        BarSession.status == "closed",
+        extract("year", BarSession.closed_at) == year,
+        extract("month", BarSession.closed_at) == month,
+    ).all()
+    yobiback_by_date: dict = {}
+    for s in yobiback_sessions:
+        d = s.closed_at.date().isoformat()
+        amount = int(s.total * 0.10)
+        yobiback_by_date[d] = yobiback_by_date.get(d, 0) + amount
+    yobiback_total = sum(yobiback_by_date.values())
+
     # 月次集計
     total_work_minutes = 0
     total_night_minutes = 0
@@ -267,6 +281,7 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
                 pass
 
         day_drink_back = drink_back_by_date.get(att.date.isoformat(), 0)
+        day_yobiback = yobiback_by_date.get(att.date.isoformat(), 0)
         daily_details.append({
             "date": att.date.isoformat(),
             "attendance_id": att.id,
@@ -280,13 +295,14 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
             "night_premium": night_premium,
             "overtime_premium": overtime_premium,
             "drink_back": day_drink_back,
-            "daily_total": daily_total + day_drink_back,
+            "yobiback": day_yobiback,
+            "daily_total": daily_total + day_drink_back + day_yobiback,
             "is_late": is_late,
             "is_early_leave": is_early_leave,
             "absence_type": getattr(att, "absence_type", None),
         })
 
-    total_wage = total_base_pay + total_night_premium + total_overtime_premium + drink_back_total
+    total_wage = total_base_pay + total_night_premium + total_overtime_premium + drink_back_total + yobiback_total
 
     return MonthlyWageResponse(
         staff_id=staff_id,
@@ -301,6 +317,7 @@ def calculate_monthly_wages(db, staff_id: int, year: int, month: int):
         night_premium=total_night_premium,
         overtime_premium=total_overtime_premium,
         drink_back_total=drink_back_total,
+        yobiback_total=yobiback_total,
         total_wage=total_wage,
         daily_details=daily_details,
     )

@@ -19,6 +19,7 @@ class SessionBase(BaseModel):
     time_limit_minutes: Optional[int] = Field(None, description="飲み放題の制限時間（分）")
     set_fee: int = Field(default=0, ge=0, description="セット料金（円）")
     nomi_hodai_price: int = Field(default=0, ge=0, description="飲み放題コース料金（1人あたり円）")
+    yobiback_staff_id: Optional[int] = Field(None, description="呼びバック担当スタッフID")
 
 
 class SessionCreate(SessionBase):
@@ -42,6 +43,7 @@ class SessionResponse(SessionBase):
     closed_at: Optional[datetime] = None
     total: int
     status: str
+    extension_fee: int = 0
     # 注文アイテム一覧（詳細取得時）
     order_items: Optional[List[OrderItemResponse]] = None
     # テーブル情報（埋め込み）

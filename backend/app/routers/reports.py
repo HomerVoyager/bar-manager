@@ -148,8 +148,8 @@ def get_monthly_sales(
             daily_data[day]["guests"] += s.guest_count
             daily_data[day]["sessions"] += 1
 
-    total_sales = sum(s.total for s in sessions)
-    total_guests = sum(s.guest_count for s in sessions)
+    total_sales = sum(s.total or 0 for s in sessions)
+    total_guests = sum(s.guest_count or 0 for s in sessions)
 
     return {
         "period": f"{year}-{month:02d}",
@@ -196,8 +196,8 @@ def get_yearly_sales(
             monthly_data[m]["guests"] += s.guest_count
             monthly_data[m]["sessions"] += 1
 
-    total_sales = sum(s.total for s in sessions)
-    total_guests = sum(s.guest_count for s in sessions)
+    total_sales = sum(s.total or 0 for s in sessions)
+    total_guests = sum(s.guest_count or 0 for s in sessions)
 
     monthly_list = list(monthly_data.values())
     # daily_dataキーで返す（フロントエンドのSalesReport型に合わせる）

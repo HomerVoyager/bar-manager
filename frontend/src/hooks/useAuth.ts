@@ -1,10 +1,11 @@
 // バー管理システム - 認証フック
 // ユーザー認証状態の管理とログイン・ログアウト機能を提供します
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginApi } from '../api/auth';
-import type { Staff, LoginCredentials } from '../types';
+import { apiClient } from '../api/client';
+import type { Staff, LoginCredentials, AuthResponse } from '../types';
 
 // ローカルストレージのキー定数
 const TOKEN_KEY = 'auth_token';
@@ -22,6 +23,16 @@ interface UseAuthReturn {
   error: string | null;
 }
 
+// JWTペイロードから有効期限（ミリ秒）を取得
+const getTokenExpiry = (token: string): number | null => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
 export const useAuth = (): UseAuthReturn => {
   // ローカルストレージからユーザー情報を初期化
   const [user, setUser] = useState<Staff | null>(() => {
@@ -30,7 +41,6 @@ export const useAuth = (): UseAuthReturn => {
       try {
         return JSON.parse(stored) as Staff;
       } catch {
-        // パースエラーの場合はnullを返す
         return null;
       }
     }
@@ -40,15 +50,56 @@ export const useAuth = (): UseAuthReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ページロード時にトークンの有効性を確認
+  // トークンを更新してストレージとstateに反映
+  const applyToken = useCallback((res: AuthResponse) => {
+    localStorage.setItem(TOKEN_KEY, res.access_token);
+    localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+    setUser(res.user);
+  }, []);
+
+  // バックグラウンドでトークンを自動更新するタイマーをセット
+  const scheduleRefresh = useCallback((token: string) => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+
+    const expiry = getTokenExpiry(token);
+    if (!expiry) return;
+
+    // 期限30分前に更新（最低でも10秒後）
+    const delay = Math.max(expiry - Date.now() - 30 * 60 * 1000, 10_000);
+
+    refreshTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiClient.post<AuthResponse>('/auth/refresh');
+        applyToken(res.data);
+        scheduleRefresh(res.data.access_token);
+      } catch {
+        // 更新失敗はインターセプターが401として処理するので何もしない
+      }
+    }, delay);
+  }, [applyToken]);
+
+  // ページロード時にトークンの有効性を確認し、リフレッシュタイマーをセット
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
-    if (!token && user) {
-      // トークンがない場合はユーザー情報もクリア
+    if (!token) {
       setUser(null);
+      return;
     }
-  }, [user]);
+    const expiry = getTokenExpiry(token);
+    if (expiry && expiry <= Date.now()) {
+      // すでに期限切れ
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      setUser(null);
+      return;
+    }
+    scheduleRefresh(token);
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ログイン処理
   const login = useCallback(async (credentials: LoginCredentials) => {
@@ -56,10 +107,8 @@ export const useAuth = (): UseAuthReturn => {
     setError(null);
     try {
       const response = await loginApi(credentials);
-      // トークンとユーザー情報をローカルストレージに保存
-      localStorage.setItem(TOKEN_KEY, response.access_token);
-      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-      setUser(response.user);
+      applyToken(response);
+      scheduleRefresh(response.access_token);
       // ダッシュボードへリダイレクト
       navigate('/dashboard');
     } catch (err: unknown) {
@@ -74,15 +123,14 @@ export const useAuth = (): UseAuthReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, applyToken, scheduleRefresh]);
 
   // ログアウト処理
   const logout = useCallback(() => {
-    // ローカルストレージをクリア
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setUser(null);
-    // ログインページへリダイレクト
     navigate('/login');
   }, [navigate]);
 
