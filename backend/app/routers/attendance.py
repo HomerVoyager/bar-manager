@@ -228,11 +228,12 @@ def break_end(
 
 def _parse_time(time_str: str, base_date: date, next_day_if_before_noon: bool = False) -> datetime:
     """HH:MM または ISO形式の文字列をdatetimeに変換。バー深夜営業対応"""
-    if len(time_str) <= 5:
+    from datetime import time as dtime, timedelta
+    time_str = time_str.strip()
+    if len(time_str) <= 5 and ":" in time_str and "T" not in time_str:
         h, m = map(int, time_str.split(":"))
-        from datetime import timedelta
         d = base_date + timedelta(days=1) if (next_day_if_before_noon and h < 12) else base_date
-        return datetime.combine(d, datetime.min.time().replace(hour=h, minute=m))
+        return datetime.combine(d, dtime(h, m))
     return datetime.fromisoformat(time_str)
 
 
