@@ -44,6 +44,9 @@ class Session(Base):
     # 飲み放題の制限時間（分）
     time_limit_minutes = Column(Integer, nullable=True)
 
+    # セット料金（開卓時に徴収する固定料金）
+    set_fee = Column(Integer, default=0, nullable=False)
+
     # リレーションシップ
     table = relationship("Table", back_populates="sessions")
     staff = relationship("Staff", back_populates="sessions")

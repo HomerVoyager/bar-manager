@@ -323,9 +323,31 @@ const AttendanceManagePage: React.FC = () => {
       )}
 
       {/* 本日の状況 */}
-      {tab === 'today' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {todayList.map((a) => (
+      {tab === 'today' && (() => {
+        const now = new Date();
+        const unclocked = todayList.filter((a) => {
+          if (!a.clock_in || a.clock_out) return false;
+          const clockInDate = new Date(a.clock_in);
+          const nextDayTen = new Date(clockInDate);
+          nextDayTen.setDate(nextDayTen.getDate() + 1);
+          nextDayTen.setHours(10, 0, 0, 0);
+          return now >= nextDayTen;
+        });
+        return (
+          <div className="space-y-4">
+            {unclocked.length > 0 && (
+              <div className="flex items-start gap-3 bg-red-900/40 border border-red-600 rounded-xl px-4 py-3">
+                <span className="text-red-400 text-lg flex-shrink-0">⚠️</span>
+                <div>
+                  <p className="text-red-300 font-bold text-sm">未退勤アラート</p>
+                  <p className="text-red-400 text-xs mt-0.5">
+                    翌朝10時を過ぎても退勤打刻がありません：{unclocked.map((a) => a.staff_name ?? `ID:${a.staff_id}`).join('、')}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {todayList.map((a) => (
             <div key={a.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4">
               <p className="text-white font-semibold">{a.staff_name ?? `スタッフID:${a.staff_id}`}</p>
               <div className="mt-2 text-sm text-gray-400 space-y-1">
@@ -335,9 +357,11 @@ const AttendanceManagePage: React.FC = () => {
               </div>
             </div>
           ))}
-          {todayList.length === 0 && <p className="text-gray-500 col-span-3">本日の打刻記録がありません</p>}
-        </div>
-      )}
+              {todayList.length === 0 && <p className="text-gray-500 col-span-3">本日の打刻記録がありません</p>}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 月次サマリー */}
       {tab === 'summary' && (

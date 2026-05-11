@@ -49,6 +49,7 @@ export interface Session {
   status: 'open' | 'closed';
   plan_type: 'tanpin' | 'nomi_hodai';
   time_limit_minutes?: number;
+  set_fee: number;
   items?: OrderItem[];
 }
 
@@ -175,6 +176,7 @@ export interface OpenSessionForm {
   guest_count: number;
   plan_type: 'tanpin' | 'nomi_hodai';
   time_limit_minutes?: number;
+  set_fee: number;
 }
 
 // 注文追加フォーム

@@ -67,6 +67,7 @@ async def open_session(
         guest_count=session_data.guest_count,
         plan_type=session_data.plan_type,
         time_limit_minutes=session_data.time_limit_minutes,
+        set_fee=session_data.set_fee,
     )
     db.add(new_session)
 
@@ -323,8 +324,8 @@ async def close_session(
             detail="このセッションは既に精算済みです"
         )
 
-    # 合計金額を計算
-    total = sum(item.qty * item.unit_price for item in session.order_items)
+    # 合計金額を計算（セット料金含む）
+    total = sum(item.qty * item.unit_price for item in session.order_items) + (session.set_fee or 0)
 
     # セッションを精算済みに更新
     session.total = total
@@ -349,6 +350,26 @@ async def close_session(
         "status": session.status,
         "message": f"精算完了: ¥{session.total:,}"
     }
+
+
+@router.patch("/{session_id}/extend", response_model=dict, summary="飲み放題延長")
+async def extend_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(get_current_user)
+):
+    """飲み放題の制限時間を30分延長する"""
+    session = db.query(BarSession).filter(BarSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"セッションID {session_id} が見つかりません")
+    if session.status != "open":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="精算済みのセッションは延長できません")
+    if session.plan_type != "nomi_hodai":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="飲み放題プランのみ延長できます")
+
+    session.time_limit_minutes = (session.time_limit_minutes or 0) + 30
+    db.commit()
+    return {"session_id": session.id, "time_limit_minutes": session.time_limit_minutes}
 
 
 @router.post("/{session_id}/split", response_model=SplitBillResponse, summary="割り勘計算")

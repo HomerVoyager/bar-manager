@@ -44,3 +44,9 @@ export const fetchSessionItems = async (sessionId: number): Promise<OrderItem[]>
   const response = await apiClient.get<OrderItem[]>(`/sessions/${sessionId}/items`);
   return response.data;
 };
+
+// 飲み放題を30分延長
+export const extendSession = async (sessionId: number): Promise<{ session_id: number; time_limit_minutes: number }> => {
+  const response = await apiClient.patch(`/sessions/${sessionId}/extend`);
+  return response.data;
+};

@@ -26,6 +26,7 @@ import {
   closeSession,
   addOrderItem,
   removeOrderItem,
+  extendSession,
 } from '../api/sessions';
 import { fetchStaffDrinks, createStaffDrink, deleteStaffDrink } from '../api/staff_drinks';
 import Modal from '../components/Modal';
@@ -73,6 +74,7 @@ const Tables: React.FC = () => {
   const [editingTable, setEditingTable] = useState<Table | null>(null);
   const [splitCount, setSplitCount] = useState<number>(2);
   const [staffDrinkForm, setStaffDrinkForm] = useState({ staff_id: '', product_id: '', qty: 1 });
+  const [setFeeEnabled, setSetFeeEnabled] = useState(true);
   const queryClient = useQueryClient();
 
   // WebSocketリアルタイム更新
@@ -121,7 +123,7 @@ const Tables: React.FC = () => {
     reset: resetOpen,
     watch: watchOpen,
     formState: { errors: openErrors },
-  } = useForm<Omit<OpenSessionForm, 'table_id'>>({ defaultValues: { plan_type: 'tanpin' } });
+  } = useForm<Omit<OpenSessionForm, 'table_id' | 'set_fee'>>({ defaultValues: { plan_type: 'tanpin' } });
 
   const selectedPlan = watchOpen('plan_type');
 
@@ -219,6 +221,7 @@ const Tables: React.FC = () => {
       setIsOpenSessionModal(false);
       setSelectedTable(null);
       resetOpen();
+      setSetFeeEnabled(true);
       refetch();
     },
     onError: (err: unknown) => {
@@ -275,6 +278,24 @@ const Tables: React.FC = () => {
     },
   });
 
+  // 飲み放題延長ミューテーション
+  const extendSessionMutation = useMutation({
+    mutationFn: (sessionId: number) => extendSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      refetch().then((result) => {
+        if (result.data && selectedTable) {
+          const updated = result.data.find((t) => t.id === selectedTable.id);
+          if (updated) setSelectedTable(updated);
+        }
+      });
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? '延長に失敗しました。');
+    },
+  });
+
   // スタッフドリンク一覧
   const currentSessionId = selectedTable?.current_session?.id;
   const { data: staffDrinks = [] } = useQuery<StaffDrink[]>({
@@ -325,7 +346,7 @@ const Tables: React.FC = () => {
   };
 
   // 開卓処理
-  const onOpenSubmit = (data: Omit<OpenSessionForm, 'table_id'>) => {
+  const onOpenSubmit = (data: Omit<OpenSessionForm, 'table_id' | 'set_fee'>) => {
     if (!selectedTable) return;
     openSessionMutation.mutate({
       table_id: selectedTable.id,
@@ -333,6 +354,7 @@ const Tables: React.FC = () => {
       guest_count: Number(data.guest_count),
       plan_type: data.plan_type,
       time_limit_minutes: data.plan_type === 'nomi_hodai' ? Number(data.time_limit_minutes) : undefined,
+      set_fee: setFeeEnabled ? 1000 : 0,
     });
   };
 
@@ -359,6 +381,14 @@ const Tables: React.FC = () => {
   const splitAmount = selectedTable?.current_session
     ? Math.ceil(selectedTable.current_session.total / splitCount)
     : 0;
+
+  // ラストオーダーアラート（飲み放題で残り10分以下）
+  const loAlerts = tables.filter((t) => {
+    const s = t.current_session;
+    if (!s || s.plan_type !== 'nomi_hodai' || !s.time_limit_minutes) return false;
+    const remaining = s.time_limit_minutes - differenceInMinutes(new Date(), new Date(s.started_at));
+    return remaining <= 10;
+  });
 
   if (isLoading) {
     return <LoadingSpinner size="large" message="卓情報を読み込み中..." />;
@@ -394,6 +424,23 @@ const Tables: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ラストオーダーアラート */}
+      {loAlerts.length > 0 && (
+        <div className="flex items-center gap-3 bg-red-900/40 border border-red-600 rounded-xl px-4 py-3 animate-pulse">
+          <Clock className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <div>
+            <p className="text-red-300 font-bold text-sm">ラストオーダー間近</p>
+            <p className="text-red-400 text-xs mt-0.5">
+              {loAlerts.map((t) => {
+                const s = t.current_session!;
+                const remaining = s.time_limit_minutes! - differenceInMinutes(new Date(), new Date(s.started_at));
+                return `${t.name}（残り${remaining <= 0 ? '時間切れ' : `${remaining}分`}）`;
+              }).join(' / ')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 凡例 */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-400">
@@ -474,6 +521,14 @@ const Tables: React.FC = () => {
                     <Clock className="w-3 h-3" />
                     <span>{formatElapsed(table.current_session.started_at)}</span>
                   </div>
+                  {table.current_session.plan_type === 'nomi_hodai' && table.current_session.time_limit_minutes && (() => {
+                    const remaining = table.current_session.time_limit_minutes! - differenceInMinutes(new Date(), new Date(table.current_session!.started_at));
+                    return (
+                      <div className={`text-xs font-bold ${remaining <= 0 ? 'text-red-400 animate-pulse' : remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>
+                        {remaining <= 0 ? '🍺 時間切れ' : `🍺 残り${remaining}分`}
+                      </div>
+                    );
+                  })()}
                   <div className="text-xs text-amber-400 font-medium">
                     {formatYen(table.current_session.total)}
                   </div>
@@ -551,12 +606,12 @@ const Tables: React.FC = () => {
       {isOpenSessionModal && selectedTable && (
         <Modal
           title={`${selectedTable.name} - 開卓`}
-          onClose={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); }}
+          onClose={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); setSetFeeEnabled(true); }}
           size="small"
           footer={
             <>
               <button
-                onClick={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); }}
+                onClick={() => { setIsOpenSessionModal(false); setSelectedTable(null); resetOpen(); setSetFeeEnabled(true); }}
                 className="px-4 py-2 text-gray-400 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
               >
                 キャンセル
@@ -641,6 +696,15 @@ const Tables: React.FC = () => {
                 )}
               </div>
             )}
+            <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setSetFeeEnabled((v) => !v)}>
+                <div className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${setFeeEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${setFeeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
+                <span className="text-sm text-gray-300">セット料金</span>
+              </label>
+              <span className={`text-sm font-semibold ${setFeeEnabled ? 'text-amber-400' : 'text-gray-600'}`}>¥1,000</span>
+            </div>
           </form>
         </Modal>
       )}
@@ -693,13 +757,22 @@ const Tables: React.FC = () => {
             {selectedTable.current_session.plan_type === 'nomi_hodai' && (
               <div className="flex items-center justify-between bg-indigo-900/30 border border-indigo-700 rounded-lg px-4 py-2 text-sm">
                 <span className="text-indigo-300 font-medium">🍺 飲み放題</span>
-                {selectedTable.current_session.time_limit_minutes && (() => {
-                  const elapsed = differenceInMinutes(new Date(), new Date(selectedTable.current_session!.started_at));
-                  const remaining = selectedTable.current_session.time_limit_minutes - elapsed;
-                  return remaining > 0
-                    ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
-                    : <span className="text-red-400 font-bold animate-pulse">時間終了</span>;
-                })()}
+                <div className="flex items-center gap-3">
+                  {selectedTable.current_session.time_limit_minutes && (() => {
+                    const elapsed = differenceInMinutes(new Date(), new Date(selectedTable.current_session!.started_at));
+                    const remaining = selectedTable.current_session.time_limit_minutes - elapsed;
+                    return remaining > 0
+                      ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
+                      : <span className="text-red-400 font-bold animate-pulse">時間終了</span>;
+                  })()}
+                  <button
+                    onClick={() => extendSessionMutation.mutate(selectedTable.current_session!.id)}
+                    disabled={extendSessionMutation.isPending}
+                    className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-600 text-indigo-200 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    +30分延長
+                  </button>
+                </div>
               </div>
             )}
             <div className="grid grid-cols-3 gap-3 text-sm">
@@ -720,6 +793,12 @@ const Tables: React.FC = () => {
                 </p>
               </div>
             </div>
+            {selectedTable.current_session.set_fee > 0 && (
+              <div className="flex items-center justify-between bg-amber-900/20 border border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-300">
+                <span>セット料金</span>
+                <span className="font-semibold">{formatYen(selectedTable.current_session.set_fee)}</span>
+              </div>
+            )}
 
             {/* 注文アイテム一覧 */}
             <div>
