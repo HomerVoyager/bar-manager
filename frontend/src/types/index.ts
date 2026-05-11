@@ -51,6 +51,7 @@ export interface Session {
   time_limit_minutes?: number;
   set_fee: number;
   nomi_hodai_price: number;
+  extension_fee: number;
   items?: OrderItem[];
 }
 

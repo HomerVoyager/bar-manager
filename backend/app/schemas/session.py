@@ -63,6 +63,7 @@ class SessionBrief(BaseModel):
     time_limit_minutes: Optional[int] = None
     set_fee: int = 0
     nomi_hodai_price: int = 0
+    extension_fee: int = 0
 
     model_config = {"from_attributes": True}
 

@@ -50,6 +50,9 @@ class Session(Base):
     # 飲み放題コース料金（1人あたり。会計時に guest_count 分加算）
     nomi_hodai_price = Column(Integer, default=0, nullable=False)
 
+    # 延長料金累計（延長するたびに加算）
+    extension_fee = Column(Integer, default=0, nullable=False)
+
     # リレーションシップ
     table = relationship("Table", back_populates="sessions")
     staff = relationship("Staff", back_populates="sessions")

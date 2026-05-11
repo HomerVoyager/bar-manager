@@ -45,8 +45,11 @@ export const fetchSessionItems = async (sessionId: number): Promise<OrderItem[]>
   return response.data;
 };
 
-// 飲み放題を30分延長
-export const extendSession = async (sessionId: number): Promise<{ session_id: number; time_limit_minutes: number }> => {
-  const response = await apiClient.patch(`/sessions/${sessionId}/extend`);
+// 飲み放題を30分延長（feePerPerson: 延長料金/人）
+export const extendSession = async (
+  sessionId: number,
+  feePerPerson: number = 0
+): Promise<{ session_id: number; time_limit_minutes: number; extension_fee: number }> => {
+  const response = await apiClient.patch(`/sessions/${sessionId}/extend`, { fee_per_person: feePerPerson });
   return response.data;
 };

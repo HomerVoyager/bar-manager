@@ -3,6 +3,7 @@
 
 import math
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 
@@ -325,9 +326,9 @@ async def close_session(
             detail="このセッションは既に精算済みです"
         )
 
-    # 合計金額を計算（セット料金＋飲み放題コース料金含む）
+    # 合計金額を計算（セット料金＋飲み放題コース料金＋延長料金含む）
     nomi_hodai_total = (session.nomi_hodai_price or 0) * session.guest_count if session.plan_type == "nomi_hodai" else 0
-    total = sum(item.qty * item.unit_price for item in session.order_items) + (session.set_fee or 0) + nomi_hodai_total
+    total = sum(item.qty * item.unit_price for item in session.order_items) + (session.set_fee or 0) + nomi_hodai_total + (session.extension_fee or 0)
 
     # セッションを精算済みに更新
     session.total = total
@@ -354,13 +355,18 @@ async def close_session(
     }
 
 
+class ExtendRequest(BaseModel):
+    fee_per_person: int = 0
+
+
 @router.patch("/{session_id}/extend", response_model=dict, summary="飲み放題延長")
 async def extend_session(
     session_id: int,
+    body: ExtendRequest = ExtendRequest(),
     db: Session = Depends(get_db),
     current_user: Staff = Depends(get_current_user)
 ):
-    """飲み放題の制限時間を30分延長する"""
+    """飲み放題の制限時間を30分延長する。fee_per_person を指定すると延長料金を加算。"""
     session = db.query(BarSession).filter(BarSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"セッションID {session_id} が見つかりません")
@@ -370,8 +376,13 @@ async def extend_session(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="飲み放題プランのみ延長できます")
 
     session.time_limit_minutes = (session.time_limit_minutes or 0) + 30
+    session.extension_fee = (session.extension_fee or 0) + body.fee_per_person * session.guest_count
     db.commit()
-    return {"session_id": session.id, "time_limit_minutes": session.time_limit_minutes}
+    return {
+        "session_id": session.id,
+        "time_limit_minutes": session.time_limit_minutes,
+        "extension_fee": session.extension_fee,
+    }
 
 
 @router.post("/{session_id}/split", response_model=SplitBillResponse, summary="割り勘計算")

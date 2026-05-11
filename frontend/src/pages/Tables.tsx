@@ -77,6 +77,7 @@ const Tables: React.FC = () => {
   const [splitCount, setSplitCount] = useState<number>(2);
   const [staffDrinkForm, setStaffDrinkForm] = useState({ staff_id: '', product_id: '', qty: 1 });
   const [setFeeEnabled, setSetFeeEnabled] = useState(true);
+  const [extensionFeePerPerson, setExtensionFeePerPerson] = useState(500);
   const queryClient = useQueryClient();
 
   // WebSocketリアルタイム更新
@@ -295,7 +296,8 @@ const Tables: React.FC = () => {
 
   // 飲み放題延長ミューテーション
   const extendSessionMutation = useMutation({
-    mutationFn: (sessionId: number) => extendSession(sessionId),
+    mutationFn: ({ sessionId, feePerPerson }: { sessionId: number; feePerPerson: number }) =>
+      extendSession(sessionId, feePerPerson),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       refetch().then((result) => {
@@ -807,13 +809,26 @@ const Tables: React.FC = () => {
                       ? <span className={`font-bold ${remaining <= 10 ? 'text-red-400 animate-pulse' : 'text-indigo-300'}`}>残り {remaining}分</span>
                       : <span className="text-red-400 font-bold animate-pulse">時間終了</span>;
                   })()}
-                  <button
-                    onClick={() => extendSessionMutation.mutate(selectedTable.current_session!.id)}
-                    disabled={extendSessionMutation.isPending}
-                    className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-600 text-indigo-200 rounded-lg text-xs font-medium transition-colors"
-                  >
-                    +30分延長
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-indigo-400 text-xs">¥</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={extensionFeePerPerson}
+                      onChange={(e) => setExtensionFeePerPerson(Number(e.target.value))}
+                      className="w-20 px-2 py-1 bg-indigo-950 border border-indigo-700 text-indigo-100 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      title="延長料金（1人あたり）"
+                    />
+                    <span className="text-indigo-400 text-xs">/人</span>
+                    <button
+                      onClick={() => extendSessionMutation.mutate({ sessionId: selectedTable.current_session!.id, feePerPerson: extensionFeePerPerson })}
+                      disabled={extendSessionMutation.isPending}
+                      className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-600 text-indigo-200 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+                    >
+                      +30分延長
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -835,7 +850,7 @@ const Tables: React.FC = () => {
                 </p>
               </div>
             </div>
-            {(selectedTable.current_session.set_fee > 0 || selectedTable.current_session.nomi_hodai_price > 0) && (
+            {(selectedTable.current_session.set_fee > 0 || selectedTable.current_session.nomi_hodai_price > 0 || selectedTable.current_session.extension_fee > 0) && (
               <div className="space-y-1.5">
                 {selectedTable.current_session.set_fee > 0 && (
                   <div className="flex items-center justify-between bg-amber-900/20 border border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-300">
@@ -847,6 +862,12 @@ const Tables: React.FC = () => {
                   <div className="flex items-center justify-between bg-indigo-900/20 border border-indigo-800 rounded-lg px-3 py-2 text-xs text-indigo-300">
                     <span>飲み放題コース ({formatYen(selectedTable.current_session.nomi_hodai_price)}/人 × {selectedTable.current_session.guest_count}名)</span>
                     <span className="font-semibold">{formatYen(selectedTable.current_session.nomi_hodai_price * selectedTable.current_session.guest_count)}</span>
+                  </div>
+                )}
+                {selectedTable.current_session.extension_fee > 0 && (
+                  <div className="flex items-center justify-between bg-purple-900/20 border border-purple-800 rounded-lg px-3 py-2 text-xs text-purple-300">
+                    <span>延長料金</span>
+                    <span className="font-semibold">{formatYen(selectedTable.current_session.extension_fee)}</span>
                   </div>
                 )}
               </div>
